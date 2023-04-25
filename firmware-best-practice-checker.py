@@ -46,6 +46,7 @@ class EmbeddedC():
         self.repoName = repoName
         self.cfg = []
         self.funcList = []
+        self.funcIrqList = []
         self.varList = []
         self.erroShortText = False
         self.errorCnt = {'1_1':0, '1_2':0, '1_3': 0,
@@ -58,41 +59,11 @@ class EmbeddedC():
         for cfg in self.data.iterconfigurations():
             self.updateCfg(cfg)
             self.createFuncList()
+            self.createFunctionIrqList()
             self.createVarList()
 
     def updateCfg(self, cfg):
         self.cfg = cfg
-
-    def createVarList(self):
-        for var in self.cfg.variables:
-            # TODO investigate bug in .dump?
-            #if var.nameTokenId== '0':
-            #    continue
-            if var.nameToken:
-                self.varList.append(
-                    {
-                    "id": var.Id,
-                    "name": var.nameToken.str,
-                    "type": var.typeStartToken.str,
-                    "isGlobal": var.isGlobal,
-                    "isLocal": var.isLocal,
-                    "isArgument": var.isArgument,
-                    "isConstant": var.isConst,
-                    "isVolatile": var.isVolatile,
-                    }
-                )
-
-    def createFuncList(self):
-        for scope in self.cfg.scopes:
-            if scope.type == "Function":
-                self.funcList.append(
-                    {
-                    'scopeId': scope.Id,
-                    'functionId': scope.function.Id,
-                    'name': scope.function.name,
-                    'argId': scope.function.argumentId
-                    }
-                )
 
     def print(self):
         print('---')
@@ -101,6 +72,11 @@ class EmbeddedC():
         print('´----------------------')
         for fun in self.funcList:
             print(fun)
+
+    def isFunctionIRQ(self, f):
+        fName = f['name']
+        res = [ele for ele in IRQ_NAMES if(ele in fName)]
+        return True if res else False
 
     def searchFuncByScopeId(self, id):
         for f in self.funcList:
@@ -133,7 +109,6 @@ class EmbeddedC():
 
     def getAllVarAssigments(self):
         l = []
-        irqFunctions = self.getFunctionIrqList()
         for token in self.cfg.tokenlist:
             if token.isAssignmentOp:
                 f = self.searchFuncByScopeId(token.scope.Id)
@@ -147,13 +122,11 @@ class EmbeddedC():
                             }
 
                         )
-
         return l
 
     def getIRQVarAssigments(self):
         l = []
-        irqFunctions = self.getFunctionIrqList()
-        irqFunctionsId = [ sub['functionId'] for sub in irqFunctions ]
+        irqFunctionsId = [ sub['functionId'] for sub in self.funcIrqList ]
         assigmentVars = self.getAllVarAssigments()
         for var in assigmentVars:
             if var['func']['functionId'] in irqFunctionsId:
@@ -162,33 +135,45 @@ class EmbeddedC():
 
     def getNoIRQVarAssigments(self):
         l = []
-        irqFunctions = self.getFunctionIrqList()
-        irqFunctionsId = [ sub['functionId'] for sub in irqFunctions ]
+        irqFunctionsId = [ sub['functionId'] for sub in self.funcIrqList ]
         assigmentVars = self.getAllVarAssigments()
         for var in assigmentVars:
             if var['func']['functionId'] not in irqFunctionsId:
                 l.append(var)
         return l
 
-    def erroShort(self):
-        self.erroShortText = True
+    def createVarList(self):
+        for var in self.cfg.variables:
+            # TODO investigate bug in .dump?
+            #if var.nameTokenId== '0':
+            #    continue
+            if var.nameToken:
+                self.varList.append(
+                    {
+                    "id": var.Id,
+                    "name": var.nameToken.str,
+                    "type": var.typeStartToken.str,
+                    "isGlobal": var.isGlobal,
+                    "isLocal": var.isLocal,
+                    "isArgument": var.isArgument,
+                    "isConstant": var.isConst,
+                    "isVolatile": var.isVolatile,
+                    }
+                )
 
-    def printRuleViolation(self, ruleN, where, text):
-        erroText = text[0] if self.erroShortText is False else text[1]
-        print (f' - [RULE {ruleN} VIOLATION] {where} \r\n\t {erroText}')
-        self.erro.append({
-            'repo': self.repoName,
-            'rule': ruleN,
-            'file': where,
-            'text': erroText,
-        })
+    def createFuncList(self):
+        for scope in self.cfg.scopes:
+            if scope.type == "Function":
+                self.funcList.append(
+                    {
+                    'scopeId': scope.Id,
+                    'functionId': scope.function.Id,
+                    'name': scope.function.name,
+                    'argId': scope.function.argumentId
+                    }
+                )
 
-    def isFunctionIRQ(self, f):
-        fName = f['name']
-        res = [ele for ele in IRQ_NAMES if(ele in fName)]
-        return True if res else False
-
-    def getFunctionIrqList(self):
+    def createFunctionIrqList(self):
         irqList = []
         for f in self.funcList:
             if self.isFunctionIRQ(f):
@@ -203,8 +188,20 @@ class EmbeddedC():
                         'scopeId': fcallback.scopeId,
                         'functionId': fcallback.functionId
                     })
-        breakpoint()
-        return irqList
+        self.funcIrqList = irqList
+
+    def erroShort(self):
+        self.erroShortText = True
+
+    def printRuleViolation(self, ruleN, where, text):
+        erroText = text[0] if self.erroShortText is False else text[1]
+        print (f' - [RULE {ruleN} VIOLATION] {where} \r\n\t {erroText}')
+        self.erro.append({
+            'repo': self.repoName,
+            'rule': ruleN,
+            'file': where,
+            'text': erroText,
+        })
 
     def rule_1_1(self):
         """
@@ -257,9 +254,8 @@ class EmbeddedC():
         """
         Rule 3: search for forbiten functions call inside ISR
         """
-        irqList = self.getFunctionIrqList()
         erro = 0
-        for f in irqList:
+        for f in self.funcIrqList:
             for token in self.cfg.tokenlist:
                 if token.scope.Id == f['scopeId']:
                     res = [ele for ele in rule if(ele in token.str)]
@@ -293,9 +289,8 @@ class EmbeddedC():
         """
         Rule 2_4: No while inside IRQ
         """
-        irqList = self.getFunctionIrqList()
         erro = 0
-        for f in irqList:
+        for f in self.funcIrqList:
             for token in self.cfg.tokenlist:
                 if token.scope.Id == f['scopeId']:
                     if token.str == 'while':
@@ -369,7 +364,7 @@ class EmbeddedC():
 
         return erro
 
-    # DOING
+    # TODO DOING
     def rule_3_2(self):
         """
         No C code in .h file
