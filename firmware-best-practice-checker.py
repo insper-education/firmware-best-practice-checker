@@ -433,6 +433,9 @@ def main():
     if args.print_table:
         print(tabulate(table,  headers='firstrow', tablefmt='fancy_grid'))
 
+    if len(errors) > 0:
+        sys.exit(1)
+
 if __name__ == '__main__':
     main()
     sys.exit(cppcheckdata.EXIT_CODE)
