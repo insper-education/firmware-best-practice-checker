@@ -17,24 +17,31 @@ OLED_FUNCTIONS = ['gfx_mono_']
 PRINTF_FUNCTIONS = ['printf', 'sprintf']
 
 RULE_1_3_EXCEPTIONS = ['lv_', 'SemaphoreHandle_t', 'TimerHandle_t', 'QueueHandle_t']
+
 RULE_1_1_ERRO_TXT = ["All global variables that are accessed from IRQ must be declared as volatile to ensure that the compailer will not optimize it out.",
-                   "All global variables that are updated in IRQ or Callback should be volatile"]
+                     "All global variables that are updated in IRQ or Callback should be volatile"]
+
 RULE_1_2_ERRO_TXT = ["Local variables should not be declared as volatile to ensure that the compailer will optimize it out.",
-                   "Local variables should NOT be volatile"]
+                     "Local variables should NOT be volatile"]
+
 RULE_1_3_ERRO_TXT = ["Global variables should generally be avoided, except when necessary or when dealing with IRQs",
-                   "Do not use global vars outside IRQ"]
+                     "Do not use global vars outside IRQ"]
 
 RULE_2_1_ERRO_TXT = ['ISR shall be fast as possible, forbidden use of delay functions inside hardware interruption',
                      'Forbidden use of delay functions within IRQ']
+
 RULE_2_2_ERRO_TXT = ['ISR shall be fast as possible, forbidden OLED update inside hardware interruption',
                      'Forbidden use of gfx_mono_... functions within IRQ']
+
 RULE_2_3_ERRO_TXT = ['ISR shall be fast as possible, forbidden PRINTF/SPRINTF inside hardware interruption',
                      'Forbidden use of printf/sprintf functions within IRQ']
+
 RULE_2_4_ERRO_TXT = ['ISR shall be fast as possible avoid the use of while and for loops',
                      'Forbidden use of loops/While within IRQ']
 
 RULE_3_1_ERRO_TXT = ['Header file (.h) contents should be protected against multiple inclusions (include guard)',
                      'Header file contents should be protected against multiple inclusions (include guard)']
+
 RULE_3_2_ERRO_TXT = ['Do not implement code inside .h file',
                      'Forbidden implementation of C code in .h file']
 
@@ -48,6 +55,7 @@ class EmbeddedC():
         self.funcList = []
         self.funcIrqList = []
         self.varList = []
+        self.varAssigmentList = []
         self.erroShortText = False
         self.errorCnt = {'1_1':0, '1_2':0, '1_3': 0,
                          '2_1': 0, '2_2':0, '2_3':0, '2_4':0,
@@ -61,6 +69,7 @@ class EmbeddedC():
             self.createFuncList()
             self.createFunctionIrqList()
             self.createVarList()
+            self.createVarAssigments()
 
     def updateCfg(self, cfg):
         self.cfg = cfg
@@ -107,28 +116,10 @@ class EmbeddedC():
                         )
         return l
 
-    def getAllVarAssigments(self):
-        l = []
-        for token in self.cfg.tokenlist:
-            if token.isAssignmentOp:
-                f = self.searchFuncByScopeId(token.scope.Id)
-                if f is not None:
-                    var = self.searchVarName(token.astOperand1.str)
-                    if var is not None:
-                        l.append(
-                            {
-                                'func': f,
-                                'var': var,
-                            }
-
-                        )
-        return l
-
     def getIRQVarAssigments(self):
         l = []
         irqFunctionsId = [ sub['functionId'] for sub in self.funcIrqList ]
-        assigmentVars = self.getAllVarAssigments()
-        for var in assigmentVars:
+        for var in self.varAssigmentList:
             if var['func']['functionId'] in irqFunctionsId:
                 l.append(var)
         return l
@@ -136,8 +127,7 @@ class EmbeddedC():
     def getNoIRQVarAssigments(self):
         l = []
         irqFunctionsId = [ sub['functionId'] for sub in self.funcIrqList ]
-        assigmentVars = self.getAllVarAssigments()
-        for var in assigmentVars:
+        for var in self.varAssigmentList:
             if var['func']['functionId'] not in irqFunctionsId:
                 l.append(var)
         return l
@@ -174,21 +164,29 @@ class EmbeddedC():
                 )
 
     def createFunctionIrqList(self):
-        irqList = []
         for f in self.funcList:
             if self.isFunctionIRQ(f):
-                irqList.append(f)
+                self.funcIrqList.append(f)
 
         for token in self.cfg.tokenlist:
             if isFunctionCall(token):
                 if token.previous.str == 'pio_handler_set':
                     fcallback = getArguments(token)[-1]
-                    irqList.append({
-                        'name': fcallback.str,
-                        'scopeId': fcallback.scopeId,
-                        'functionId': fcallback.functionId
+                    self.funcIrqList.append({
+                            'name': fcallback.str,
+                            'scopeId': fcallback.scopeId,
+                            'functionId': fcallback.functionId
+                        })
+
+    def createVarAssigments(self):
+        for token in self.cfg.tokenlist:
+            if token.isAssignmentOp:
+                f = self.searchFuncByScopeId(token.scope.Id)
+                var = self.searchVarName(token.astOperand1.str)
+                if f is not None and var is not None:
+                    self.varAssigmentList.append({
+                        'func': f, 'var': var
                     })
-        self.funcIrqList = irqList
 
     def erroShort(self):
         self.erroShortText = True
@@ -207,13 +205,12 @@ class EmbeddedC():
         """
         Rule 1: All global variables assigment in IRQ or Callback should be volatile
         """
-        assigmentList = self.getIRQVarAssigments()
         erro = 0
-        for ass in assigmentList:
+        for ass in self.varAssigmentList:
             if ass['var']['isVolatile'] != True:
                 varName = ass['var']['name']
                 funcName = ass['func']['name']
-                self.printRuleViolation("1_1", f'[variable {varName} in function {funcName}]', RULE_1_1_ERRO_TXT)
+                self.printRuleViolation("1_1", f'variable {varName} in function {funcName}', RULE_1_1_ERRO_TXT)
                 erro = erro + 1
         self.errorCnt['1_1'] = erro
         return erro
@@ -225,7 +222,7 @@ class EmbeddedC():
             if l['var']['isVolatile'] and l['var']['isLocal']:
                 varName = l['var']['name']
                 funcName = l['func']['name']
-                self.printRuleViolation("1_2", f'[variable {varName} in function {funcName}]', RULE_1_2_ERRO_TXT)
+                self.printRuleViolation("1_2", f'variable {varName} in function {funcName}', RULE_1_2_ERRO_TXT)
                 erro = erro + 1
         self.errorCnt['1_2'] = erro
         return erro
