@@ -5,10 +5,11 @@ import os
 import sys
 from glob import glob
 
+from tabulate import tabulate
+
 import cppcheckdata
 from misra import (get_type_conversion_to_from, getArguments, is_header,
                    isFunctionCall, isKeyword)
-from tabulate import tabulate
 
 IRQ_NAMES = ['callback', 'Handler']
 DELAY_FUNCTIONS = ['delay_', 'delay_ms', 'delay_us', 'delay_s']
@@ -82,15 +83,16 @@ class EmbeddedC():
                 )
 
     def createFuncList(self):
-        for func in self.cfg.functions:
-            self.funcList.append(
-                {
-                'scopeId': func.Id,
-                'functionId': func.Id,
-                'name': func.name,
-                'argId': func.argumentId
-                }
-            )
+        for scope in self.cfg.scopes:
+            if scope.type == "Function":
+                self.funcList.append(
+                    {
+                    'scopeId': scope.Id,
+                    'functionId': scope.function.Id,
+                    'name': scope.function.name,
+                    'argId': scope.function.argumentId
+                    }
+                )
 
     def print(self):
         print('---')
@@ -145,6 +147,7 @@ class EmbeddedC():
                             }
 
                         )
+
         return l
 
     def getIRQVarAssigments(self):
@@ -200,7 +203,7 @@ class EmbeddedC():
                         'scopeId': fcallback.scopeId,
                         'functionId': fcallback.functionId
                     })
-
+        breakpoint()
         return irqList
 
     def rule_1_1(self):
