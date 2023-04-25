@@ -379,10 +379,11 @@ class EmbeddedC():
 
 def main():
     parser = argparse.ArgumentParser(description='Process some dump c file')
-    parser.add_argument('dump_file', help='c dump file created by cppcheck')
+    parser.add_argument('check_path', help='check path with dump file created by cppcheck')
+    parser.add_argument('--print_table', action=argparse.BooleanOptionalAction, help='print table with report')
     args = parser.parse_args()
 
-    file = args.dump_file
+    file = args.check_path
     if os.path.isdir(file):
         files = [y for x in os.walk(file) for y in glob(os.path.join(x[0], '*.dump'))]
     else:
@@ -397,14 +398,13 @@ def main():
     for f in files:
         print('--------------')
         repoName = os.path.relpath(f, file).split('/')[0]
-        print(repoName)
+        print(f'Analyzing: {repoName}')
 
         data = cppcheckdata.CppcheckData(f)
         check = EmbeddedC(data, repoName)
         e = []
         for cfg in data.iterconfigurations():
             check.updateCfg(cfg)
-            #check.print()
             check.erroShort()
             check.rule_1_1() # global var ISR volatile
             check.rule_1_2() # local var ISR volatile
@@ -415,8 +415,7 @@ def main():
             check.rule_2_4() # ISR SAP no while
             check.rule_3_1() # no include guard
             check.rule_3_2() # C code not allow in head file
-            #print('- [RESUME VIOLATIONS]')
-            #print(f"\t {check.errorCnt}")
+
             for key, value in check.errorCnt.items():
                 errorCnt[key] = errorCnt[key] + value
 
@@ -431,9 +430,9 @@ def main():
         writer = csv.writer(file)
         writer.writerows(table)
 
-    print(tabulate(table,  headers='firstrow', tablefmt='fancy_grid'))
+    if args.print_table:
+        print(tabulate(table,  headers='firstrow', tablefmt='fancy_grid'))
 
-#    print(errorCnt)
 if __name__ == '__main__':
     main()
     sys.exit(cppcheckdata.EXIT_CODE)
