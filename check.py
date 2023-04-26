@@ -436,7 +436,12 @@ def main():
         "check_path", help="check path with dump file created by cppcheck"
     )
     parser.add_argument(
-        "--print_table",
+        "--output-file",
+        type=argparse.FileType("w"),
+        help="csv file name to save result",
+    )
+    parser.add_argument(
+        "--print-table",
         action=argparse.BooleanOptionalAction,
         help="print table with report",
     )
@@ -448,28 +453,15 @@ def main():
     else:
         files = [file]
 
-    errorCnt = {
-        "1_1": 0,
-        "1_2": 0,
-        "1_3": 0,
-        "2_1": 0,
-        "2_2": 0,
-        "2_3": 0,
-        "2_4": 0,
-        "3_1": 0,
-        "3_2": 0,
-    }
-
     errors = []
 
     for f in files:
         print("--------------")
-        repoName = os.path.relpath(f, file).split("/")[0]
-        print(f"Analyzing: {repoName}")
+        checkName = os.path.relpath(f, file).split("/")[0]
+        print(f"Checking: {checkName}")
 
         data = cppcheckdata.CppcheckData(f)
-        check = EmbeddedC(data, repoName)
-        e = []
+        check = EmbeddedC(data, checkName)
         for cfg in data.iterconfigurations():
             check.updateCfg(cfg)
             check.erroShort()
@@ -483,9 +475,6 @@ def main():
             check.rule_3_1()  # no include guard
             check.rule_3_2()  # C code not allow in head file
 
-            for key, value in check.errorCnt.items():
-                errorCnt[key] = errorCnt[key] + value
-
         errors.append(check.erro)
 
     table = []
@@ -493,9 +482,10 @@ def main():
         for e in repos:
             table.append(e.values())
 
-    with open("studentsq.csv", "w", newline="") as file:
-        writer = csv.writer(file)
+    if args.output_file:
+        writer = csv.writer(args.output_file)
         writer.writerows(table)
+        args.output_file.close()
 
     if args.print_table:
         print(tabulate(table, headers="firstrow", tablefmt="fancy_grid"))
