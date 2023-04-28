@@ -8,19 +8,15 @@ from glob import glob
 from tabulate import tabulate
 
 import cppcheckdata
-from misra import (
-    get_type_conversion_to_from,
-    getArguments,
-    is_header,
-    isFunctionCall,
-    isKeyword,
-)
+from misra import (get_type_conversion_to_from, getArguments, is_header,
+                   isFunctionCall, isKeyword)
 
 IRQ_NAMES = ["callback", "Handler"]
 DELAY_FUNCTIONS = ["delay_", "delay_ms", "delay_us", "delay_s"]
 OLED_FUNCTIONS = ["gfx_mono_"]
 PRINTF_FUNCTIONS = ["printf", "sprintf"]
 
+RULE_1_1_EXCEPTIONS = ["lv_", "SemaphoreHandle_t", "TimerHandle_t", "QueueHandle_t"]
 RULE_1_3_EXCEPTIONS = ["lv_", "SemaphoreHandle_t", "TimerHandle_t", "QueueHandle_t"]
 
 RULE_1_1_ERRO_TXT = [
@@ -78,6 +74,7 @@ class EmbeddedC:
         self.funcIrqList = []
         self.varList = []
         self.varAssigmentList = []
+        self.globalVarAssigmentList = []
         self.erroShortText = False
         self.errorCnt = {
             "1_1": 0,
@@ -100,6 +97,7 @@ class EmbeddedC:
             self.createFunctionIrqList()
             self.createVarList()
             self.createVarAssigments()
+            self.createGlobalVarAssigments()
 
     def updateCfg(self, cfg):
         self.cfg = cfg
@@ -128,22 +126,6 @@ class EmbeddedC:
             if name == v["name"]:
                 return v
         return None
-
-    def getGlobalVarAssigments(self):
-        l = []
-        for token in self.cfg.tokenlist:
-            if token.isAssignmentOp:
-                f = self.searchFuncByScopeId(token.scope.Id)
-                if f is not None:
-                    var = self.searchVarName(token.astOperand1.str)
-                    if var is not None and var["isGlobal"] == True:
-                        l.append(
-                            {
-                                "func": f,
-                                "var": var,
-                            }
-                        )
-        return l
 
     def getIRQVarAssigments(self):
         l = []
@@ -179,6 +161,20 @@ class EmbeddedC:
                         "isVolatile": var.isVolatile,
                     }
                 )
+
+    def createGlobalVarAssigments(self):
+        for token in self.cfg.tokenlist:
+            if token.isAssignmentOp:
+                f = self.searchFuncByScopeId(token.scope.Id)
+                if f is not None:
+                    var = self.searchVarName(token.astOperand1.str)
+                    if var is not None and var["isGlobal"] == True:
+                        self.globalVarAssigmentList.append(
+                            {
+                                "func": f,
+                                "var": var,
+                            }
+                        )
 
     def createFuncList(self):
         for scope in self.cfg.scopes:
@@ -237,7 +233,12 @@ class EmbeddedC:
         Rule 1: All global variables assigment in IRQ or Callback should be volatile
         """
         erro = 0
-        for ass in self.varAssigmentList:
+
+        for ass in self.globalVarAssigmentList:
+            # skip exceptions
+            if [ele for ele in RULE_1_1_EXCEPTIONS if (ele in ass["var"]["type"])]:
+                continue
+
             if ass["var"]["isVolatile"] != True:
                 varName = ass["var"]["name"]
                 funcName = ass["func"]["name"]
@@ -270,12 +271,14 @@ class EmbeddedC:
         """
         Rule 2: only use global vars in IRQ
         """
-        varList = self.getGlobalVarAssigments()
         erro = 0
-        for l in varList:
+        for l in self.globalVarAssigmentList:
             # skip global exceptions (rtos, lcd)
             if [ele for ele in RULE_1_3_EXCEPTIONS if (ele in l["var"]["type"])]:
                 continue
+
+            print('----')
+            print(l['var']['type'])
 
             # exclude var that are accessed in IRQ
             if self.isFunctionIRQ(l["func"]) is False:
