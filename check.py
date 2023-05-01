@@ -277,9 +277,6 @@ class EmbeddedC:
             if [ele for ele in RULE_1_3_EXCEPTIONS if (ele in l["var"]["type"])]:
                 continue
 
-            print('----')
-            print(l['var']['type'])
-
             # exclude var that are accessed in IRQ
             if self.isFunctionIRQ(l["func"]) is False:
                 varName = l["var"]["name"]
