@@ -88,6 +88,7 @@ class EmbeddedC:
             "3_2": 0,
         }
         self.erro = []
+        self.erroTotal = 0
         self.init()
 
     def init(self):
@@ -119,6 +120,7 @@ class EmbeddedC:
         for f in self.funcList:
             if id == f["scopeId"]:
                 return f
+
         return None
 
     def searchVarName(self, name):
@@ -166,15 +168,18 @@ class EmbeddedC:
         for token in self.cfg.tokenlist:
             if token.isAssignmentOp:
                 f = self.searchFuncByScopeId(token.scope.Id)
-                if f is not None:
-                    var = self.searchVarName(token.astOperand1.str)
-                    if var is not None and var["isGlobal"] == True:
-                        self.globalVarAssigmentList.append(
-                            {
-                                "func": f,
-                                "var": var,
-                            }
-                        )
+                var = self.searchVarName(token.astOperand1.str)
+
+                if f is None:
+                    f =  {'name': 'global'}
+
+                if f is not None and var is not None and var["isGlobal"]:
+                    self.globalVarAssigmentList.append(
+                        {
+                            "func": f,
+                            "var": var,
+                        }
+                    )
 
     def createFuncList(self):
         for scope in self.cfg.scopes:
@@ -207,9 +212,10 @@ class EmbeddedC:
 
     def createVarAssigments(self):
         for token in self.cfg.tokenlist:
-            if token.isAssignmentOp:
+            if token.isAssignmentOp and token.scope.type != 'Global':
                 f = self.searchFuncByScopeId(token.scope.Id)
                 var = self.searchVarName(token.astOperand1.str)
+
                 if f is not None and var is not None:
                     self.varAssigmentList.append({"func": f, "var": var})
 
@@ -217,6 +223,7 @@ class EmbeddedC:
         self.erroShortText = True
 
     def printRuleViolation(self, ruleN, where, text):
+        self.erroTotal = self.erroTotal + 1
         erroText = text[0] if self.erroShortText is False else text[1]
         print(f" - [RULE {ruleN} VIOLATION] {where} \r\n\t {erroText}")
         self.erro.append(
@@ -234,7 +241,7 @@ class EmbeddedC:
         """
         erro = 0
 
-        for ass in self.globalVarAssigmentList:
+        for ass in self.getIRQVarAssigments():
             # skip exceptions
             if [ele for ele in RULE_1_1_EXCEPTIONS if (ele in ass["var"]["type"])]:
                 continue
@@ -252,6 +259,9 @@ class EmbeddedC:
         return erro
 
     def rule_1_2(self):
+        """
+        Rule 2: Do not use volatile in local var
+        """
         erro = 0
         local = self.getNoIRQVarAssigments()
         for l in local:
@@ -357,13 +367,11 @@ class EmbeddedC:
 
         # number of functions call
         for f in fIrqList:
-            print(f["name"])
             fCallCnt = 0
             for token in self.cfg.tokenlist:
                 if token.scope.Id == f["scopeId"]:
                     if isFunctionCall(token):
                         fCallCnt = fCallCnt + 1
-            print(fCallCnt)
 
     def rule_3_1(self):
         """
@@ -490,9 +498,7 @@ def main():
     if args.print_table:
         print(tabulate(table, headers="firstrow", tablefmt="fancy_grid"))
 
-    if len(errors) > 1:
-        sys.exit(1)
-
+    sys.exit(check.erroTotal)
 
 if __name__ == "__main__":
     main()
