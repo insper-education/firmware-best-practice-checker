@@ -5,7 +5,6 @@ import os
 import sys
 from glob import glob
 
-from colorama import Back, Fore, Style, init
 from sty import bg, ef, fg, rs
 from tabulate import tabulate
 
