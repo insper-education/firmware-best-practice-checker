@@ -18,8 +18,8 @@ DELAY_FUNCTIONS = ["delay_", "delay_ms", "delay_us", "delay_s"]
 OLED_FUNCTIONS = ["gfx_mono_"]
 PRINTF_FUNCTIONS = ["printf", "sprintf"]
 
-RULE_1_1_EXCEPTIONS = ["lv_", "SemaphoreHandle_t", "TimerHandle_t", "QueueHandle_t"]
-RULE_1_3_EXCEPTIONS = ["lv_", "SemaphoreHandle_t", "TimerHandle_t", "QueueHandle_t"]
+RULE_1_1_EXCEPTIONS = ["lv_obj_t", "SemaphoreHandle_t", "TimerHandle_t", "QueueHandle_t"]
+RULE_1_3_EXCEPTIONS = ["lv_obj_t", "SemaphoreHandle_t", "TimerHandle_t", "QueueHandle_t"]
 
 RULE_1_1_ERRO_TXT = [
     "All global variables that are accessed from IRQ must be declared as volatile to ensure that the compailer will not optimize it out.",
@@ -68,10 +68,11 @@ RULE_3_2_ERRO_TXT = [
 
 
 class EmbeddedC:
-    def __init__(self, data, repoName, fileName):
+    def __init__(self, data, repoName, filePath):
         self.data = data
         self.repoName = repoName
-        self.fileName = fileName
+        self.filePath = filePath
+        self.fileName = os.path.basename(filePath)
         self.erroTotal = 0
         self.cfg = []
 
@@ -182,10 +183,7 @@ class EmbeddedC:
         # create lisr of function IRQ name
         irqFuncClassNames = []
         for func in irqFuncs:
-            try:
-                irqFuncClassNames.append(func.name)
-            except:
-                breakpoint()
+            irqFuncClassNames.append(func.name)
 
         varErroListId = []
         for ass in assigments:
@@ -360,7 +358,7 @@ class EmbeddedC:
         if not is_header(fname):
             return erro
 
-        # TODO do with regex
+        # TODO do with regex?
         fname = os.path.basename(self.cfg.tokenlist[0].file)
         fnameX = fname.replace("-", "_")
         fnameX = fnameX.replace(".", "_")
@@ -389,7 +387,7 @@ class EmbeddedC:
 
         if erro:
             self.printRuleViolation(
-                "3_1", f"include guard in file {fname}", RULE_3_1_ERRO_TXT
+                "3_1", f"no include guard detected in file {fg.blue}{fname}{fg.rs}", RULE_3_1_ERRO_TXT
             )
 
         return erro
@@ -407,15 +405,19 @@ class EmbeddedC:
                     if token.file in headList:
                         continue
 
+                    # pointer declaration
+                    if token.astOperand1 == None:
+                        continue
+
                     # skip prototype
                     if token.astOperand1.variable == None:
                         continue
 
-                    print(token.file)
+                    fileName = os.path.basename(token.file)
 
                     self.printRuleViolation(
                         "3_2",
-                        f"Use of C code declaration in line {token.linenr} inside file {token.file}",
+                        f"Use of C code declaration in {fg.blue}line {token.linenr}{fg.rs} inside file {fg.blue}{fileName}{fg.rs}",
                         RULE_3_2_ERRO_TXT,
                     )
                     headList.append(token.file)
@@ -446,10 +448,11 @@ def main():
     else:
         files = [file]
 
-    errors = []
+    erroTotal = 0
 
     for f in files:
         print("--------------")
+        print(f)
         checkName = os.path.relpath(f, file).split("/")[0]
         print(f"Checking: {checkName}")
 
@@ -468,6 +471,7 @@ def main():
             check.rule_2_4()
             check.rule_3_1()
             check.rule_3_2()
+        erroTotal = erroTotal + check.erroTotal
 
     if args.output_file:
         writer = csv.writer(args.output_file)
@@ -477,6 +481,7 @@ def main():
     if args.print_table:
         print(tabulate(table, headers="firstrow", tablefmt="fancy_grid"))
 
+    sys.exit(erroTotal)
 
 if __name__ == "__main__":
     main()
