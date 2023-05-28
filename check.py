@@ -74,6 +74,7 @@ class EmbeddedC:
         self.filePath = filePath
         self.fileName = os.path.basename(filePath)
         self.erroTotal = 0
+        self.erroLog = []
         self.cfg = []
 
     def updateCfg(self, cfg):
@@ -169,7 +170,15 @@ class EmbeddedC:
     def printRuleViolation(self, ruleN, where, text):
         self.erroTotal = self.erroTotal + 1
         erroText = text[0]
+        self.erroLog.append({
+                "repo": self.repoName,
+                "file": self.fileName,
+                "rule": ruleN,
+                "file": where,
+                "text": erroText,
+            })
         print(f" - [{fg.red}RULE {ruleN} VIOLATION{fg.rs}] {where} \r\n\t {erroText}")
+
 
     def rule_1_1(self):
         """
@@ -449,6 +458,7 @@ def main():
         files = [file]
 
     erroTotal = 0
+    erroLog = []
 
     for f in files:
         print("--------------")
@@ -472,6 +482,12 @@ def main():
             check.rule_3_1()
             check.rule_3_2()
         erroTotal = erroTotal + check.erroTotal
+        erroLog.append(check.erroLog)
+
+    table = []
+    for erro in erroLog:
+        for e in erro:
+            table.append(e.values())
 
     if args.output_file:
         writer = csv.writer(args.output_file)
