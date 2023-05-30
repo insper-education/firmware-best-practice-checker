@@ -1,0 +1,27 @@
+IRQ_NAMES:
+  - callback
+  - Handler
+
+DELAY_FUNCTIONS:
+  - delay_ms
+  - delay_us
+  - delay_s
+
+OLED_FUNCTIONS:
+  - gfx_mono_
+
+PRINTF_FUNCTIONS:
+  - printf
+  - sprintf
+
+RULE_1_1_EXCEPTIONS:
+  - lv_obj_t
+  - SemaphoreHandle_t
+  - TimerHandle_t
+  - QueueHandle_t
+
+RULE_1_3_EXCEPTIONS:
+  - lv_obj_t
+  - SemaphoreHandle_t
+  - TimerHandle_t
+  - QueueHandle_t

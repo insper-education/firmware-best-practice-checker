@@ -3,6 +3,7 @@ import argparse
 import csv
 import os
 import sys
+import yaml
 from glob import glob
 
 from sty import bg, ef, fg, rs
@@ -13,21 +14,13 @@ from misra import *
 from misra import (get_type_conversion_to_from, getArguments, getEssentialType,
                    is_header, isFunctionCall, isKeyword)
 
-IRQ_NAMES = ["callback", "Handler"]
-DELAY_FUNCTIONS = ["delay_", "delay_ms", "delay_us", "delay_s"]
-OLED_FUNCTIONS = ["gfx_mono_"]
-PRINTF_FUNCTIONS = ["printf", "sprintf"]
-
-RULE_1_1_EXCEPTIONS = ["lv_obj_t", "SemaphoreHandle_t", "TimerHandle_t", "QueueHandle_t"]
-RULE_1_3_EXCEPTIONS = ["lv_obj_t", "SemaphoreHandle_t", "TimerHandle_t", "QueueHandle_t"]
-
 RULE_1_1_ERRO_TXT = [
     "All global variables that are accessed from IRQ must be declared as volatile to ensure that the compailer will not optimize it out.",
     "All global variables that are updated in IRQ or Callback should be volatile",
 ]
 
 RULE_1_2_ERRO_TXT = [
-    "Local variables should not be declared as volatile to ensure that the compailer will optimize it out.",
+    "Local variables should not be declared as volatile to ensure that the compiler will optimize it out.",
     "Local variables should NOT be volatile",
 ]
 
@@ -73,12 +66,20 @@ class EmbeddedC:
         self.repoName = repoName
         self.filePath = filePath
         self.fileName = os.path.basename(filePath)
+        self.readConfig()
         self.erroTotal = 0
         self.erroLog = []
         self.cfg = []
 
     def updateCfg(self, cfg):
         self.cfg = cfg
+
+    def readConfig(self):
+        with open("rules.yml", "r") as stream:
+            try:
+                self.config = yaml.safe_load(stream)
+            except yaml.YAMLError as exc:
+                print(exc)
 
     def getVars(self):
         return self.cfg.variables
@@ -148,7 +149,7 @@ class EmbeddedC:
         return globalVarsAssigments
 
     def isFunctionIRQ(self, f):
-        res = [ele for ele in IRQ_NAMES if (ele in f.name)]
+        res = [ele for ele in self.config['IRQ_NAMES'] if (ele in f.name)]
         return True if res else False
 
     def createFunctionIrqList(self):
@@ -198,7 +199,7 @@ class EmbeddedC:
         for ass in assigments:
             # excluce specific types exceptions (rtos, lcd)
             varType = ass['variable'].typeStartToken.str
-            if [ele for ele in RULE_1_1_EXCEPTIONS if (ele in varType)]:
+            if [ele for ele in self.config['RULE_1_1_EXCEPTIONS'] if (ele in varType)]:
                 continue
 
             # only check for var ass in IRQ functions
@@ -276,7 +277,7 @@ class EmbeddedC:
         varErroListId = []
         for ass in assigments:
             # excluce specific types exceptions (rtos, lcd)
-            if ass['variable'].typeStartToken.str in RULE_1_3_EXCEPTIONS:
+            if ass['variable'].typeStartToken.str in self.config['RULE_1_3_EXCEPTIONS']:
                 continue
 
             # exclude var that are accessed in Isr
@@ -324,19 +325,19 @@ class EmbeddedC:
         """
         Rule 2_1: No delay inside IRQ
         """
-        return self.rule_2_x("2_1", RULE_2_1_ERRO_TXT, DELAY_FUNCTIONS)
+        return self.rule_2_x("2_1", RULE_2_1_ERRO_TXT, self.config['DELAY_FUNCTIONS'])
 
     def rule_2_2(self):
         """
         Rule 2_2: No oled calls inside IRQ
         """
-        return self.rule_2_x("2_2", RULE_2_2_ERRO_TXT, OLED_FUNCTIONS)
+        return self.rule_2_x("2_2", RULE_2_2_ERRO_TXT, self.config['OLED_FUNCTIONS'])
 
     def rule_2_3(self):
         """
         Rule 2_3: No printf calls inside IRQ
         """
-        return self.rule_2_x("2_3", RULE_2_3_ERRO_TXT, PRINTF_FUNCTIONS)
+        return self.rule_2_x("2_3", RULE_2_3_ERRO_TXT, self.config['PRINTF_FUNCTIONS'])
 
     def rule_2_4(self):
         """
