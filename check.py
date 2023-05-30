@@ -10,54 +10,7 @@ from sty import bg, ef, fg, rs
 from tabulate import tabulate
 
 import cppcheckdata
-from misra import *
-from misra import (get_type_conversion_to_from, getArguments, getEssentialType,
-                   is_header, isFunctionCall, isKeyword)
-
-RULE_1_1_ERRO_TXT = [
-    "All global variables that are accessed from IRQ must be declared as volatile to ensure that the compailer will not optimize it out.",
-    "All global variables that are updated in IRQ or Callback should be volatile",
-]
-
-RULE_1_2_ERRO_TXT = [
-    "Local variables should not be declared as volatile to ensure that the compiler will optimize it out.",
-    "Local variables should NOT be volatile",
-]
-
-RULE_1_3_ERRO_TXT = [
-    "Global variables should generally be avoided, except when necessary or when dealing with IRQs",
-    "Do not use global vars outside IRQ",
-]
-
-RULE_2_1_ERRO_TXT = [
-    "ISR shall be fast as possible, forbidden use of delay functions inside hardware interruption",
-    "Forbidden use of delay functions within IRQ",
-]
-
-RULE_2_2_ERRO_TXT = [
-    "ISR shall be fast as possible, forbidden OLED update inside hardware interruption",
-    "Forbidden use of gfx_mono_... functions within IRQ",
-]
-
-RULE_2_3_ERRO_TXT = [
-    "ISR shall be fast as possible, forbidden PRINTF/SPRINTF inside hardware interruption",
-    "Forbidden use of printf/sprintf functions within IRQ",
-]
-
-RULE_2_4_ERRO_TXT = [
-    "ISR shall be fast as possible avoid the use of while and for loops",
-    "Forbidden use of loops/While within IRQ",
-]
-
-RULE_3_1_ERRO_TXT = [
-    "Header file (.h) contents should be protected against multiple inclusions (include guard)",
-    "Header file contents should be protected against multiple inclusions (include guard)",
-]
-
-RULE_3_2_ERRO_TXT = [
-    "Do not implement code inside .h file",
-    "Forbidden implementation of C code in .h file",
-]
+from misra import (getArguments, is_header, isFunctionCall)
 
 
 class checker:
@@ -216,7 +169,7 @@ class checker:
                 self.print_rule_violation(
                     "1_1",
                     f"variable {fg.blue}{var_name}{fg.rs} in function {fg.blue}{func_name}{fg.rs}",
-                    RULE_1_1_ERRO_TXT,
+                    self.config['RULE_1_1_ERRO_TXT'],
                 )
                 var_erro_list_id.append(ass['variable'].Id)
                 erro = erro + 1
@@ -248,7 +201,7 @@ class checker:
                 self.print_rule_violation(
                     "1_2",
                     f"variable {fg.blue}{var_name}{fg.rs} in function {fg.blue}{func_name}{fg.rs}",
-                    RULE_1_2_ERRO_TXT,
+                    self.config['RULE_1_2_ERRO_TXT'],
                 )
                 erro = erro + 1
         return erro
@@ -293,7 +246,7 @@ class checker:
             self.print_rule_violation(
                 "1_3",
                 f"global variable {fg.blue}{var_name}{fg.rs}",
-                RULE_1_3_ERRO_TXT,
+                self.config['RULE_1_3_ERRO_TXT'],
             )
             var_erro_list_id.append(ass['variable'].Id)
             erro = erro + 1
@@ -316,7 +269,9 @@ class checker:
                         irq_name = function.token.str
                         call_name = token.str
                         self.print_rule_violation(
-                            rule_n, f"function call to {fg.blue}{call_name}{fg.rs} inside {fg.blue}{irq_name}{fg.rs}", erro_txt
+                            rule_n,
+                            f"function call to {fg.blue}{call_name}{fg.rs} inside {fg.blue}{irq_name}{fg.rs}",
+                            erro_txt
                         )
                         erro = erro + 1
         return erro
@@ -325,19 +280,19 @@ class checker:
         """
         Rule 2_1: No delay inside IRQ
         """
-        return self.rule_2_x("2_1", RULE_2_1_ERRO_TXT, self.config['DELAY_FUNCTIONS'])
+        return self.rule_2_x("2_1", self.config['RULE_2_1_ERRO_TXT'], self.config['DELAY_FUNCTIONS'])
 
     def rule_2_2(self):
         """
         Rule 2_2: No oled calls inside IRQ
         """
-        return self.rule_2_x("2_2", RULE_2_2_ERRO_TXT, self.config['OLED_FUNCTIONS'])
+        return self.rule_2_x("2_2", self.config['RULE_2_2_ERRO_TXT'], self.config['OLED_FUNCTIONS'])
 
     def rule_2_3(self):
         """
         Rule 2_3: No printf calls inside IRQ
         """
-        return self.rule_2_x("2_3", RULE_2_3_ERRO_TXT, self.config['PRINTF_FUNCTIONS'])
+        return self.rule_2_x("2_3", self.config['RULE_2_3_ERRO_TXT'], self.config['PRINTF_FUNCTIONS'])
 
     def rule_2_4(self):
         """
@@ -353,7 +308,9 @@ class checker:
                     if token.str in ["while", "for", "do"]:
                         irq_name = function.token.str
                         self.print_rule_violation(
-                            "2_4", f"Use of {fg.blue}{token.str}{fg.rs} inside {fg.blue}{irq_name}{fg.rs}", RULE_2_4_ERRO_TXT
+                            "2_4",
+                            f"Use of {fg.blue}{token.str}{fg.rs} inside {fg.blue}{irq_name}{fg.rs}",
+                            self.config['RULE_2_4_ERRO_TXT']
                         )
                         erro = erro + 1
         return erro
@@ -397,7 +354,9 @@ class checker:
 
         if erro:
             self.print_rule_violation(
-                "3_1", f"no include guard detected in file {fg.blue}{fname}{fg.rs}", RULE_3_1_ERRO_TXT
+                "3_1",
+                f"no include guard detected in file {fg.blue}{fname}{fg.rs}",
+                self.config['RULE_3_1_ERRO_TXT']
             )
 
         return erro
@@ -428,7 +387,7 @@ class checker:
                     self.print_rule_violation(
                         "3_2",
                         f"Use of C code declaration in {fg.blue}line {token.linenr}{fg.rs} inside file {fg.blue}{file_name}{fg.rs}",
-                        RULE_3_2_ERRO_TXT,
+                        self.config['RULE_3_2_ERRO_TXT'],
                     )
                     head_list.append(token.file)
                     erro = erro + 1
