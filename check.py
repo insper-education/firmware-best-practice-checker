@@ -105,13 +105,14 @@ class checker:
         res = [ele for ele in self.config['IRQ_NAMES'] if (ele in f.name)]
         return True if res else False
 
-    def createFunctionIrqList(self):
+    def create_function_irq_list(self):
         irq_funcs = []
         for f in self.cfg.functions:
             if self.is_funq_irq(f):
                 if f != None:
                     irq_funcs.append(f)
 
+        # TODO: export this to config file
         for token in self.cfg.tokenlist:
             if isFunctionCall(token):
                 if token.previous.str == "pio_handler_set":
@@ -141,7 +142,7 @@ class checker:
         erro = 0
 
         assigments = self.get_only_golbal_var_ass()
-        irq_funcs = self.createFunctionIrqList()
+        irq_funcs = self.create_function_irq_list()
 
         # create lisr of function IRQ name
         irq_func_class_names = []
@@ -183,7 +184,7 @@ class checker:
         erro = 0
 
         assigments = self.get_all_var_ass()
-        irq_funcs = self.createFunctionIrqList()
+        irq_funcs = self.create_function_irq_list()
 
         # create lisr of function IRQ name
         irq_func_class_names = []
@@ -213,7 +214,7 @@ class checker:
         erro = 0
 
         assigments = self.get_only_golbal_var_ass()
-        irq_funcs = self.createFunctionIrqList()
+        irq_funcs = self.create_function_irq_list()
 
         # create lisr of function IRQ name
         irq_func_class_names = []
@@ -259,7 +260,7 @@ class checker:
         """
         erro = 0
 
-        irq_funcs = self.createFunctionIrqList()
+        irq_funcs = self.create_function_irq_list()
         for function in irq_funcs:
             for token in self.cfg.tokenlist:
                 scope = self.get_scope(token)
@@ -300,7 +301,7 @@ class checker:
         """
         erro = 0
 
-        irq_funcs = self.createFunctionIrqList()
+        irq_funcs = self.create_function_irq_list()
         for function in irq_funcs:
             for token in self.cfg.tokenlist:
                 scope = self.get_scope(token)
