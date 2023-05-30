@@ -60,55 +60,55 @@ RULE_3_2_ERRO_TXT = [
 ]
 
 
-class EmbeddedC:
-    def __init__(self, data, repoName, filePath):
+class checker:
+    def __init__(self, data, repo_name, file_path):
         self.data = data
-        self.repoName = repoName
-        self.filePath = filePath
-        self.fileName = os.path.basename(filePath)
-        self.readConfig()
-        self.erroTotal = 0
-        self.erroLog = []
+        self.repo_name = repo_name
+        self.file_path = file_path
+        self.file_name = os.path.basename(file_path)
+        self.read_config()
+        self.erro_total = 0
+        self.erro_log = []
         self.cfg = []
 
-    def updateCfg(self, cfg):
+    def update_cfg(self, cfg):
         self.cfg = cfg
 
-    def readConfig(self):
+    def read_config(self):
         with open("rules.yml", "r") as stream:
             try:
                 self.config = yaml.safe_load(stream)
             except yaml.YAMLError as exc:
                 print(exc)
 
-    def getVars(self):
+    def get_vars(self):
         return self.cfg.variables
 
-    def getScopes(self):
+    def get_scopes(self):
         return self.cfg.scopes
 
-    def getPreviousScope(self, scopeId):
+    def get_previous_scope(self, scope_id):
         cnt = 0
-        scopes = self.getScopes()
+        scopes = self.get_scopes()
         for scope in scopes:
-            if scope.Id == scopeId:
+            if scope.Id == scope_id:
                 return scopes[cnt - 1]
             cnt = cnt + 1
 
-    def getOnlyGlobalVars(self):
-        varList = []
+    def get_only_global_vars(self):
+        vars = []
         for var in self.cfg.variables:
             if var.isGlobal:
-                varList.append(var)
-        return varList
+                vars.append(var)
+        return vars
 
-    def getScope(self, token):
+    def get_scope(self, token):
         scope = token.scope
         while scope.type != 'Function':
-            scope = self.getPreviousScope(scope.Id)
+            scope = self.get_previous_scope(scope.Id)
         return scope
 
-    def getVarAss(self, token):
+    def get_var_ass(self, token):
         var = None
         if token.astOperand1.str == '[':
             t = token.astOperand1
@@ -119,66 +119,66 @@ class EmbeddedC:
             var = token.astOperand1.variable
         return var
 
-    def getAllVarAssigments(self):
-        allVarAssigments = []
+    def get_all_var_ass(self):
+        ass = []
 
         for token in self.cfg.tokenlist:
             if token.isAssignmentOp and token.scope.type != 'Global':
-                variable = self.getVarAss(token)
+                variable = self.get_var_ass(token)
                 if variable is None:
                     continue
 
-                scope = self.getScope(token)
-                allVarAssigments.append({
+                scope = self.get_scope(token)
+                ass.append({
                     'className': scope.className,
                     'variable': variable,
                     'line': token.linenr,
                 })
-        return allVarAssigments
+        return ass
 
-    def getOnlyGolbalVarAssigments(self):
-        allVarAssigments = self.getAllVarAssigments()
-        globalVars = self.getOnlyGlobalVars()
+    def get_only_golbal_var_ass(self):
+        all_var_ass = self.get_all_var_ass()
+        global_vars = self.get_only_global_vars()
 
         # create list of global var assigments
-        globalVarsAssigments = []
-        for var in globalVars:
-            for ass in allVarAssigments:
+        global_ass = []
+        for var in global_vars:
+            for ass in all_var_ass:
                 if var.Id == ass['variable'].Id:
-                    globalVarsAssigments.append(ass)
-        return globalVarsAssigments
+                    global_ass.append(ass)
+        return global_ass
 
-    def isFunctionIRQ(self, f):
+    def is_funq_irq(self, f):
         res = [ele for ele in self.config['IRQ_NAMES'] if (ele in f.name)]
         return True if res else False
 
     def createFunctionIrqList(self):
-        irqFuncList = []
+        irq_funcs = []
         for f in self.cfg.functions:
-            if self.isFunctionIRQ(f):
+            if self.is_funq_irq(f):
                 if f != None:
-                    irqFuncList.append(f)
+                    irq_funcs.append(f)
 
         for token in self.cfg.tokenlist:
             if isFunctionCall(token):
                 if token.previous.str == "pio_handler_set":
-                    f = getArguments(token)[-1]
-                    if f.function != None:
-                        irqFuncList.append(f.function)
+                    func = getArguments(token)[-1]
+                    if func.function is not None:
+                        irq_funcs.append(func.function)
 
-        return irqFuncList
+        return irq_funcs
 
-    def printRuleViolation(self, ruleN, where, text):
-        self.erroTotal = self.erroTotal + 1
-        erroText = text[0]
-        self.erroLog.append({
-                "repo": self.repoName,
-                "file": self.fileName,
+    def print_rule_violation(self, ruleN, where, text):
+        self.erro_total = self.erro_total + 1
+        erro_text = text[0]
+        self.erro_log.append({
+                "repo": self.repo_name,
+                "file": self.file_name,
                 "rule": ruleN,
                 "file": where,
-                "text": erroText,
+                "text": erro_text,
             })
-        print(f" - [{fg.red}RULE {ruleN} VIOLATION{fg.rs}] {where} \r\n\t {erroText}")
+        print(f" - [{fg.red}RULE {ruleN} VIOLATION{fg.rs}] {where} \r\n\t {erro_text}")
 
 
     def rule_1_1(self):
@@ -187,38 +187,38 @@ class EmbeddedC:
         """
         erro = 0
 
-        assigments = self.getOnlyGolbalVarAssigments()
-        irqFuncs = self.createFunctionIrqList()
+        assigments = self.get_only_golbal_var_ass()
+        irq_funcs = self.createFunctionIrqList()
 
         # create lisr of function IRQ name
-        irqFuncClassNames = []
-        for func in irqFuncs:
-            irqFuncClassNames.append(func.name)
+        irq_func_class_names = []
+        for func in irq_funcs:
+            irq_func_class_names.append(func.name)
 
-        varErroListId = []
+        var_erro_list_id = []
         for ass in assigments:
             # excluce specific types exceptions (rtos, lcd)
-            varType = ass['variable'].typeStartToken.str
-            if [ele for ele in self.config['RULE_1_1_EXCEPTIONS'] if (ele in varType)]:
+            var_type = ass['variable'].typeStartToken.str
+            if [ele for ele in self.config['RULE_1_1_EXCEPTIONS'] if (ele in var_type)]:
                 continue
 
             # only check for var ass in IRQ functions
-            if ass['className'] not in irqFuncClassNames:
+            if ass['className'] not in irq_func_class_names:
                 continue
 
             # skip duplicate error
-            if ass['variable'].Id in varErroListId:
+            if ass['variable'].Id in var_erro_list_id:
                 continue
 
             if not ass["variable"].isVolatile:
-                varName = ass["variable"].nameToken.str
-                funcName = ass["className"]
-                self.printRuleViolation(
+                var_name = ass["variable"].nameToken.str
+                func_name = ass["className"]
+                self.print_rule_violation(
                     "1_1",
-                    f"variable {fg.blue}{varName}{fg.rs} in function {fg.blue}{funcName}{fg.rs}",
+                    f"variable {fg.blue}{var_name}{fg.rs} in function {fg.blue}{func_name}{fg.rs}",
                     RULE_1_1_ERRO_TXT,
                 )
-                varErroListId.append(ass['variable'].Id)
+                var_erro_list_id.append(ass['variable'].Id)
                 erro = erro + 1
         return erro
 
@@ -229,25 +229,25 @@ class EmbeddedC:
 
         erro = 0
 
-        assigments = self.getAllVarAssigments()
-        irqFuncs = self.createFunctionIrqList()
+        assigments = self.get_all_var_ass()
+        irq_funcs = self.createFunctionIrqList()
 
         # create lisr of function IRQ name
-        irqFuncClassNames = []
-        for func in irqFuncs:
-            irqFuncClassNames.append(func.name)
+        irq_func_class_names = []
+        for func in irq_funcs:
+            irq_func_class_names.append(func.name)
 
         for ass in assigments:
             # exclue IRQ functions
-            if ass['className'] in irqFuncClassNames:
+            if ass['className'] in irq_func_class_names:
                 continue
 
             if ass["variable"].isVolatile and ass['variable'].isLocal:
-                varName = ass["variable"].nameToken.str
-                funcName = ass["className"]
-                self.printRuleViolation(
+                var_name = ass["variable"].nameToken.str
+                func_name = ass["className"]
+                self.print_rule_violation(
                     "1_2",
-                    f"variable {fg.blue}{varName}{fg.rs} in function {fg.blue}{funcName}{fg.rs}",
+                    f"variable {fg.blue}{var_name}{fg.rs} in function {fg.blue}{func_name}{fg.rs}",
                     RULE_1_2_ERRO_TXT,
                 )
                 erro = erro + 1
@@ -259,64 +259,64 @@ class EmbeddedC:
         """
         erro = 0
 
-        assigments = self.getOnlyGolbalVarAssigments()
-        irqFuncs = self.createFunctionIrqList()
+        assigments = self.get_only_golbal_var_ass()
+        irq_funcs = self.createFunctionIrqList()
 
         # create lisr of function IRQ name
-        irqFuncClassNames = []
-        for func in irqFuncs:
-            irqFuncClassNames.append(func.name)
+        irq_func_class_names = []
+        for func in irq_funcs:
+            irq_func_class_names.append(func.name)
 
         # create var list that are update in ISR
-        varAssIsrIds = []
+        var_ass_irq_ids = []
         for ass in assigments:
-            if [ele for ele in irqFuncClassNames if (ele in ass['className'])]:
-                varAssIsrIds.append(ass['variable'].Id)
+            if [ele for ele in irq_func_class_names if (ele in ass['className'])]:
+                var_ass_irq_ids.append(ass['variable'].Id)
 
         # interact in global vars only assigments
-        varErroListId = []
+        var_erro_list_id = []
         for ass in assigments:
             # excluce specific types exceptions (rtos, lcd)
             if ass['variable'].typeStartToken.str in self.config['RULE_1_3_EXCEPTIONS']:
                 continue
 
             # exclude var that are accessed in Isr
-            if ass['variable'].Id in varAssIsrIds:
+            if ass['variable'].Id in var_ass_irq_ids:
                 continue
 
             # skip duplicate error
-            if ass['variable'].Id in varErroListId:
+            if ass['variable'].Id in var_erro_list_id:
                 continue
 
             # erro print
-            varName = ass['variable'].nameToken.str
-            self.printRuleViolation(
+            var_name = ass['variable'].nameToken.str
+            self.print_rule_violation(
                 "1_3",
-                f"global variable {fg.blue}{varName}{fg.rs}",
+                f"global variable {fg.blue}{var_name}{fg.rs}",
                 RULE_1_3_ERRO_TXT,
             )
-            varErroListId.append(ass['variable'].Id)
+            var_erro_list_id.append(ass['variable'].Id)
             erro = erro + 1
 
         return erro
 
-    def rule_2_x(self, ruleN, ruleTxt, rule):
+    def rule_2_x(self, rule_n, erro_txt, rule):
         """
         Rule 3: search for forbiten functions call inside ISR
         """
         erro = 0
 
-        irqFuncs = self.createFunctionIrqList()
-        for function in irqFuncs:
+        irq_funcs = self.createFunctionIrqList()
+        for function in irq_funcs:
             for token in self.cfg.tokenlist:
-                scope = self.getScope(token)
+                scope = self.get_scope(token)
                 if scope.function.Id == function.Id:
                     res = [ele for ele in rule if (ele in token.str)]
                     if res:
-                        isrName = function.token.str
-                        callName = token.str
-                        self.printRuleViolation(
-                            ruleN, f"function call to {fg.blue}{callName}{fg.rs} inside {fg.blue}{isrName}{fg.rs}", ruleTxt
+                        irq_name = function.token.str
+                        call_name = token.str
+                        self.print_rule_violation(
+                            rule_n, f"function call to {fg.blue}{call_name}{fg.rs} inside {fg.blue}{irq_name}{fg.rs}", erro_txt
                         )
                         erro = erro + 1
         return erro
@@ -345,15 +345,15 @@ class EmbeddedC:
         """
         erro = 0
 
-        irqFuncs = self.createFunctionIrqList()
-        for function in irqFuncs:
+        irq_funcs = self.createFunctionIrqList()
+        for function in irq_funcs:
             for token in self.cfg.tokenlist:
-                scope = self.getScope(token)
+                scope = self.get_scope(token)
                 if scope.function.Id == function.Id:
                     if token.str in ["while", "for", "do"]:
-                        isrName = function.token.str
-                        self.printRuleViolation(
-                            "2_4", f"Use of {fg.blue}{token.str}{fg.rs} inside {fg.blue}{isrName}{fg.rs}", RULE_2_4_ERRO_TXT
+                        irq_name = function.token.str
+                        self.print_rule_violation(
+                            "2_4", f"Use of {fg.blue}{token.str}{fg.rs} inside {fg.blue}{irq_name}{fg.rs}", RULE_2_4_ERRO_TXT
                         )
                         erro = erro + 1
         return erro
@@ -376,27 +376,27 @@ class EmbeddedC:
         h1 = f"#define {fnameX}"
         hl = f"#endif"
 
-        allDirectives = self.cfg.directives
-        headerDirectives = []
-        for d in allDirectives:
+        all_directives = self.cfg.directives
+        header_directives = []
+        for d in all_directives:
             if d.file.find(fname) > 0:
-                headerDirectives.append(d)
+                header_directives.append(d)
 
         # easy, no directives
-        if len(headerDirectives) == 0:
+        if len(header_directives) == 0:
             erro = 1
-        if len(headerDirectives) < 3:
+        if len(header_directives) < 3:
             erro = 1
         else:
-            if headerDirectives[0].str.lower().find(h0):
+            if header_directives[0].str.lower().find(h0):
                 erro = 1
-            if headerDirectives[1].str.lower().find(h1):
+            if header_directives[1].str.lower().find(h1):
                 erro = 1
-            if headerDirectives[-1].str.lower().find(hl):
+            if header_directives[-1].str.lower().find(hl):
                 erro = 1
 
         if erro:
-            self.printRuleViolation(
+            self.print_rule_violation(
                 "3_1", f"no include guard detected in file {fg.blue}{fname}{fg.rs}", RULE_3_1_ERRO_TXT
             )
 
@@ -408,29 +408,29 @@ class EmbeddedC:
         """
         erro = 0
 
-        headList = []
+        head_list = []
         for token in self.cfg.tokenlist:
             if is_header(token.file):
                 if token.isOp:
-                    if token.file in headList:
+                    if token.file in head_list:
                         continue
 
                     # pointer declaration
-                    if token.astOperand1 == None:
+                    if token.astOperand1 is None:
                         continue
 
                     # skip prototype
-                    if token.astOperand1.variable == None:
+                    if token.astOperand1.variable is None:
                         continue
 
-                    fileName = os.path.basename(token.file)
+                    file_name = os.path.basename(token.file)
 
-                    self.printRuleViolation(
+                    self.print_rule_violation(
                         "3_2",
-                        f"Use of C code declaration in {fg.blue}line {token.linenr}{fg.rs} inside file {fg.blue}{fileName}{fg.rs}",
+                        f"Use of C code declaration in {fg.blue}line {token.linenr}{fg.rs} inside file {fg.blue}{file_name}{fg.rs}",
                         RULE_3_2_ERRO_TXT,
                     )
-                    headList.append(token.file)
+                    head_list.append(token.file)
                     erro = erro + 1
         return erro
 
@@ -458,21 +458,21 @@ def main():
     else:
         files = [file]
 
-    erroTotal = 0
-    erroLog = []
+    erro_total = 0
+    erro_log = []
 
     for f in files:
         print("--------------")
         print(f)
-        checkName = os.path.relpath(f, file).split("/")[0]
-        print(f"Checking: {checkName}")
+        check_name = os.path.relpath(f, file).split("/")[0]
+        print(f"Checking: {check_name}")
 
         data = cppcheckdata.CppcheckData(f)
-        check = EmbeddedC(data, checkName, f)
+        check = checker(data, check_name, f)
         for cfg in data.iterconfigurations():
-            check.updateCfg(cfg)
-            check.getOnlyGlobalVars()
-            check.getAllVarAssigments()
+            check.update_cfg(cfg)
+            check.get_only_global_vars()
+            check.get_all_var_ass()
             check.rule_1_1()
             check.rule_1_2()
             check.rule_1_3()
@@ -482,11 +482,11 @@ def main():
             check.rule_2_4()
             check.rule_3_1()
             check.rule_3_2()
-        erroTotal = erroTotal + check.erroTotal
-        erroLog.append(check.erroLog)
+        erro_total = erro_total + check.erro_total
+        erro_log.append(check.erro_log)
 
     table = []
-    for erro in erroLog:
+    for erro in erro_log:
         for e in erro:
             table.append(e.values())
 
@@ -498,7 +498,7 @@ def main():
     if args.print_table:
         print(tabulate(table, headers="firstrow", tablefmt="fancy_grid"))
 
-    sys.exit(erroTotal)
+    sys.exit(erro_total)
 
 if __name__ == "__main__":
     main()
