@@ -14,8 +14,9 @@ from misra import (getArguments, is_header, isFunctionCall)
 
 
 class checker:
-    def __init__(self, data, repo_name, file_path):
+    def __init__(self, data, repo_name, file_path, rules_yml = None):
         self.data = data
+        self.rules_yml = rules_yml
         self.repo_name = repo_name
         self.file_path = file_path
         self.file_name = os.path.basename(file_path)
@@ -28,7 +29,9 @@ class checker:
         self.cfg = cfg
 
     def read_config(self):
-        with open("rules.yml", "r") as stream:
+        rules_yml_default = os.path.join( os.path.dirname(__file__), 'rules.yml')
+        rules_yml = rules_yml_default if self.rules_yml == None else self.rules_yml
+        with open(rules_yml, "r") as stream:
             try:
                 self.config = yaml.safe_load(stream)
             except yaml.YAMLError as exc:
