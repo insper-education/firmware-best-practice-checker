@@ -38,26 +38,26 @@ RULE_1_3_ERRO_TXT:
  - Global variables should generally be avoided, except when necessary or when dealing with IRQs.
  - Do not use global vars outside IRQ.
 
-RULE_2_1_ERRO_TXT:
+RULE_3_1_ERRO_TXT:
  - ISR shall be fast as possible, forbidden use of delay functions inside hardware interruption.
  - Forbidden use of delay functions within IRQ.
 
-RULE_2_2_ERRO_TXT:
+RULE_3_2_ERRO_TXT:
  - ISR shall be fast as possible, forbidden OLED update inside hardware interruption.
  - Forbidden use of gfx_mono_... functions within IRQ.
 
-RULE_2_3_ERRO_TXT:
+RULE_3_3_ERRO_TXT:
  - ISR shall be fast as possible, forbidden PRINTF/SPRINTF inside hardware interruption
  - Forbidden use of printf/sprintf functions within IRQ
 
-RULE_2_4_ERRO_TXT:
+RULE_3_4_ERRO_TXT:
  - ISR shall be fast as possible avoid the use of while and for loops
  - Forbidden use of loops/While within IRQ
 
-RULE_3_1_ERRO_TXT:
+RULE_2_1_ERRO_TXT:
  - Header file (.h) contents should be protected against multiple inclusions (include guard)
  - Header file contents should be protected against multiple inclusions (include guard)
 
-RULE_3_2_ERRO_TXT:
+RULE_2_2_ERRO_TXT:
  - Do not implement code inside .h file
  - Forbidden implementation of C code in .h file

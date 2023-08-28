@@ -10,11 +10,11 @@ from sty import bg, ef, fg, rs
 from tabulate import tabulate
 
 import cppcheckdata
-from misra import (getArguments, is_header, isFunctionCall)
+from misra import getArguments, is_header, isFunctionCall
 
 
 class checker:
-    def __init__(self, data, repo_name, file_path, rules_yml = None):
+    def __init__(self, data, repo_name, file_path, rules_yml=None):
         self.data = data
         self.rules_yml = rules_yml
         self.repo_name = repo_name
@@ -29,7 +29,7 @@ class checker:
         self.cfg = cfg
 
     def read_config(self):
-        rules_yml_default = os.path.join( os.path.dirname(__file__), 'rules.yml')
+        rules_yml_default = os.path.join(os.path.dirname(__file__), "rules.yml")
         rules_yml = rules_yml_default if self.rules_yml == None else self.rules_yml
         with open(rules_yml, "r") as stream:
             try:
@@ -60,13 +60,13 @@ class checker:
 
     def get_scope(self, token):
         scope = token.scope
-        while scope.type != 'Function':
+        while scope.type != "Function":
             scope = self.get_previous_scope(scope.Id)
         return scope
 
     def get_var_ass(self, token):
         var = None
-        if token.astOperand1.str == '[':
+        if token.astOperand1.str == "[":
             t = token.astOperand1
             while t.variable == None:
                 t = t.astOperand1
@@ -79,17 +79,19 @@ class checker:
         ass = []
 
         for token in self.cfg.tokenlist:
-            if token.isAssignmentOp and token.scope.type != 'Global':
+            if token.isAssignmentOp and token.scope.type != "Global":
                 variable = self.get_var_ass(token)
                 if variable is None:
                     continue
 
                 scope = self.get_scope(token)
-                ass.append({
-                    'className': scope.className,
-                    'variable': variable,
-                    'line': token.linenr,
-                })
+                ass.append(
+                    {
+                        "className": scope.className,
+                        "variable": variable,
+                        "line": token.linenr,
+                    }
+                )
         return ass
 
     def get_only_golbal_var_ass(self):
@@ -100,12 +102,12 @@ class checker:
         global_ass = []
         for var in global_vars:
             for ass in all_var_ass:
-                if var.Id == ass['variable'].Id:
+                if var.Id == ass["variable"].Id:
                     global_ass.append(ass)
         return global_ass
 
     def is_funq_irq(self, f):
-        res = [ele for ele in self.config['IRQ_NAMES'] if (ele in f.name)]
+        res = [ele for ele in self.config["IRQ_NAMES"] if (ele in f.name)]
         return True if res else False
 
     def create_function_irq_list(self):
@@ -128,15 +130,16 @@ class checker:
     def print_rule_violation(self, ruleN, where, text):
         self.erro_total = self.erro_total + 1
         erro_text = text[0]
-        self.erro_log.append({
+        self.erro_log.append(
+            {
                 "repo": self.repo_name,
                 "file": self.file_name,
                 "rule": ruleN,
                 "file": where,
                 "text": erro_text,
-            })
+            }
+        )
         print(f" - [{fg.red}RULE {ruleN} VIOLATION{fg.rs}] {where} \r\n\t {erro_text}")
-
 
     def rule_1_1(self):
         """
@@ -155,16 +158,16 @@ class checker:
         var_erro_list_id = []
         for ass in assigments:
             # excluce specific types exceptions (rtos, lcd)
-            var_type = ass['variable'].typeStartToken.str
-            if [ele for ele in self.config['RULE_1_1_EXCEPTIONS'] if (ele in var_type)]:
+            var_type = ass["variable"].typeStartToken.str
+            if [ele for ele in self.config["RULE_1_1_EXCEPTIONS"] if (ele in var_type)]:
                 continue
 
             # only check for var ass in IRQ functions
-            if ass['className'] not in irq_func_class_names:
+            if ass["className"] not in irq_func_class_names:
                 continue
 
             # skip duplicate error
-            if ass['variable'].Id in var_erro_list_id:
+            if ass["variable"].Id in var_erro_list_id:
                 continue
 
             if not ass["variable"].isVolatile:
@@ -173,9 +176,9 @@ class checker:
                 self.print_rule_violation(
                     "1_1",
                     f"variable {fg.blue}{var_name}{fg.rs} in function {fg.blue}{func_name}{fg.rs}",
-                    self.config['RULE_1_1_ERRO_TXT'],
+                    self.config["RULE_1_1_ERRO_TXT"],
                 )
-                var_erro_list_id.append(ass['variable'].Id)
+                var_erro_list_id.append(ass["variable"].Id)
                 erro = erro + 1
         return erro
 
@@ -196,16 +199,16 @@ class checker:
 
         for ass in assigments:
             # exclue IRQ functions
-            if ass['className'] in irq_func_class_names:
+            if ass["className"] in irq_func_class_names:
                 continue
 
-            if ass["variable"].isVolatile and ass['variable'].isLocal:
+            if ass["variable"].isVolatile and ass["variable"].isLocal:
                 var_name = ass["variable"].nameToken.str
                 func_name = ass["className"]
                 self.print_rule_violation(
                     "1_2",
                     f"variable {fg.blue}{var_name}{fg.rs} in function {fg.blue}{func_name}{fg.rs}",
-                    self.config['RULE_1_2_ERRO_TXT'],
+                    self.config["RULE_1_2_ERRO_TXT"],
                 )
                 erro = erro + 1
         return erro
@@ -227,37 +230,37 @@ class checker:
         # create var list that are update in ISR
         var_ass_irq_ids = []
         for ass in assigments:
-            if [ele for ele in irq_func_class_names if (ele in ass['className'])]:
-                var_ass_irq_ids.append(ass['variable'].Id)
+            if [ele for ele in irq_func_class_names if (ele in ass["className"])]:
+                var_ass_irq_ids.append(ass["variable"].Id)
 
         # interact in global vars only assigments
         var_erro_list_id = []
         for ass in assigments:
             # excluce specific types exceptions (rtos, lcd)
-            if ass['variable'].typeStartToken.str in self.config['RULE_1_3_EXCEPTIONS']:
+            if ass["variable"].typeStartToken.str in self.config["RULE_1_3_EXCEPTIONS"]:
                 continue
 
             # exclude var that are accessed in Isr
-            if ass['variable'].Id in var_ass_irq_ids:
+            if ass["variable"].Id in var_ass_irq_ids:
                 continue
 
             # skip duplicate error
-            if ass['variable'].Id in var_erro_list_id:
+            if ass["variable"].Id in var_erro_list_id:
                 continue
 
             # erro print
-            var_name = ass['variable'].nameToken.str
+            var_name = ass["variable"].nameToken.str
             self.print_rule_violation(
                 "1_3",
                 f"global variable {fg.blue}{var_name}{fg.rs}",
-                self.config['RULE_1_3_ERRO_TXT'],
+                self.config["RULE_1_3_ERRO_TXT"],
             )
-            var_erro_list_id.append(ass['variable'].Id)
+            var_erro_list_id.append(ass["variable"].Id)
             erro = erro + 1
 
         return erro
 
-    def rule_2_x(self, rule_n, erro_txt, rule):
+    def rule_3_x(self, rule_n, erro_txt, rule):
         """
         Rule 3: search for forbiten functions call inside ISR
         """
@@ -275,30 +278,36 @@ class checker:
                         self.print_rule_violation(
                             rule_n,
                             f"function call to {fg.blue}{call_name}{fg.rs} inside {fg.blue}{irq_name}{fg.rs}",
-                            erro_txt
+                            erro_txt,
                         )
                         erro = erro + 1
         return erro
 
-    def rule_2_1(self):
+    def rule_3_1(self):
         """
         Rule 2_1: No delay inside IRQ
         """
-        return self.rule_2_x("2_1", self.config['RULE_2_1_ERRO_TXT'], self.config['DELAY_FUNCTIONS'])
+        return self.rule_3_x(
+            "3_1", self.config["RULE_3_1_ERRO_TXT"], self.config["DELAY_FUNCTIONS"]
+        )
 
-    def rule_2_2(self):
+    def rule_3_2(self):
         """
         Rule 2_2: No oled calls inside IRQ
         """
-        return self.rule_2_x("2_2", self.config['RULE_2_2_ERRO_TXT'], self.config['OLED_FUNCTIONS'])
+        return self.rule_3_x(
+            "3_2", self.config["RULE_3_2_ERRO_TXT"], self.config["OLED_FUNCTIONS"]
+        )
 
-    def rule_2_3(self):
+    def rule_3_3(self):
         """
         Rule 2_3: No printf calls inside IRQ
         """
-        return self.rule_2_x("2_3", self.config['RULE_2_3_ERRO_TXT'], self.config['PRINTF_FUNCTIONS'])
+        return self.rule_3_x(
+            "3_3", self.config["RULE_3_3_ERRO_TXT"], self.config["PRINTF_FUNCTIONS"]
+        )
 
-    def rule_2_4(self):
+    def rule_3_4(self):
         """
         Rule 2_4: No while inside IRQ
         """
@@ -312,14 +321,14 @@ class checker:
                     if token.str in ["while", "for", "do"]:
                         irq_name = function.token.str
                         self.print_rule_violation(
-                            "2_4",
+                            "3_4",
                             f"Use of {fg.blue}{token.str}{fg.rs} inside {fg.blue}{irq_name}{fg.rs}",
-                            self.config['RULE_2_4_ERRO_TXT']
+                            self.config["RULE_3_4_ERRO_TXT"],
                         )
                         erro = erro + 1
         return erro
 
-    def rule_3_1(self):
+    def rule_2_1(self):
         """
         no include guard in .h file
         """
@@ -358,14 +367,14 @@ class checker:
 
         if erro:
             self.print_rule_violation(
-                "3_1",
+                "2_1",
                 f"no include guard detected in file {fg.blue}{fname}{fg.rs}",
-                self.config['RULE_3_1_ERRO_TXT']
+                self.config["RULE_2_1_ERRO_TXT"],
             )
 
         return erro
 
-    def rule_3_2(self):
+    def rule_2_2(self):
         """
         No C code in .h file
         """
@@ -389,9 +398,9 @@ class checker:
                     file_name = os.path.basename(token.file)
 
                     self.print_rule_violation(
-                        "3_2",
+                        "2_2",
                         f"Use of C code declaration in {fg.blue}line {token.linenr}{fg.rs} inside file {fg.blue}{file_name}{fg.rs}",
-                        self.config['RULE_3_2_ERRO_TXT'],
+                        self.config["RULE_2_2_ERRO_TXT"],
                     )
                     head_list.append(token.file)
                     erro = erro + 1
@@ -441,10 +450,10 @@ def main():
             check.rule_1_3()
             check.rule_2_1()
             check.rule_2_2()
-            check.rule_2_3()
-            check.rule_2_4()
             check.rule_3_1()
             check.rule_3_2()
+            check.rule_3_3()
+            check.rule_3_4()
         erro_total = erro_total + check.erro_total
         erro_log.append(check.erro_log)
 
@@ -462,6 +471,7 @@ def main():
         print(tabulate(table, headers="firstrow", tablefmt="fancy_grid"))
 
     sys.exit(erro_total)
+
 
 if __name__ == "__main__":
     main()
