@@ -335,13 +335,14 @@ class checker:
         erro = 0
 
         fname = self.cfg.tokenlist[0].file
+
         if not is_header(fname):
             return erro
 
         # TODO do with regex?
         fname = os.path.basename(self.cfg.tokenlist[0].file)
-        fnameX = fname.replace("-", "_")
-        fnameX = fnameX.replace(".", "_")
+        fnameX = fname.replace("-", "_").lower()
+        fnameX = fnameX.replace(".", "_").lower()
         h0 = f"#ifndef {fnameX}"
         h1 = f"#define {fnameX}"
         hl = f"#endif"
@@ -349,7 +350,7 @@ class checker:
         all_directives = self.cfg.directives
         header_directives = []
         for d in all_directives:
-            if d.file.find(fname) > 0:
+            if d.file == fname:
                 header_directives.append(d)
 
         # easy, no directives
@@ -368,7 +369,7 @@ class checker:
         if erro:
             self.print_rule_violation(
                 "2_1",
-                f"no include guard detected in file {fg.blue}{fname}{fg.rs}",
+                f"no include guard detected in file or wrong implementation on: {fg.blue}{fname}{fg.rs}",
                 self.config["RULE_2_1_ERRO_TXT"],
             )
 
