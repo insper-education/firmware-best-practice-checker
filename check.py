@@ -350,7 +350,7 @@ class checker:
         all_directives = self.cfg.directives
         header_directives = []
         for d in all_directives:
-            if d.file == fname:
+            if os.path.basename(d.file.lower()) == fname.lower():
                 header_directives.append(d)
 
         # easy, no directives
