@@ -5,6 +5,7 @@ import os
 import sys
 import yaml
 from glob import glob
+import re
 
 from sty import bg, ef, fg, rs
 from tabulate import tabulate
@@ -328,6 +329,24 @@ class checker:
                         erro = erro + 1
         return erro
 
+    def canonical_form(self, s: str) -> str:
+        """Convert a string to its canonical form."""
+        # Remove any file extensions
+        s = re.sub(r"\.\w+$", "", s)
+
+        # Convert camelCase to snake_case
+        s = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", s)
+
+        # Convert everything to lowercase
+        s = s.lower()
+
+        # Remove trailing underscores
+        s = s.rstrip("_")
+
+    def is_variation(self, base: str, candidate: str) -> bool:
+        """Check if the candidate string is a variation of the base string."""
+        return self.canonical_form(base) != self.canonical_form(candidate)
+
     def rule_2_1(self):
         """
         no include guard in .h file
@@ -339,13 +358,7 @@ class checker:
         if not is_header(fname):
             return erro
 
-        # TODO do with regex?
         fname = os.path.basename(self.cfg.tokenlist[0].file)
-        fnameX = fname.replace("-", "_").lower()
-        fnameX = fnameX.replace(".", "_").lower()
-        h0 = f"#ifndef {fnameX}"
-        h1 = f"#define {fnameX}"
-        hl = f"#endif"
 
         all_directives = self.cfg.directives
         header_directives = []
@@ -353,18 +366,17 @@ class checker:
             if os.path.basename(d.file.lower()) == fname.lower():
                 header_directives.append(d)
 
+        h0 = header_directives[0].str.lower().split("#ifndef")[-1].strip()
+        h1 = header_directives[1].str.lower().split("#define")[-1].strip()
+        hl = header_directives[-1].str.lower().find("#endif")
+
         # easy, no directives
-        if len(header_directives) == 0:
+        if len(header_directives) == 0 or len(header_directives) < 3:
             erro = 1
-        if len(header_directives) < 3:
+        elif self.is_variation(h0, fname) or self.is_variation(h1, fname) or hl < 0:
             erro = 1
         else:
-            if header_directives[0].str.lower().find(h0):
-                erro = 1
-            if header_directives[1].str.lower().find(h1):
-                erro = 1
-            if header_directives[-1].str.lower().find(hl):
-                erro = 1
+            erro = 0
 
         if erro:
             self.print_rule_violation(
