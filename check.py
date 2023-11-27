@@ -366,17 +366,16 @@ class checker:
             if os.path.basename(d.file.lower()) == fname.lower():
                 header_directives.append(d)
 
-        h0 = header_directives[0].str.lower().split("#ifndef")[-1].strip()
-        h1 = header_directives[1].str.lower().split("#define")[-1].strip()
-        hl = header_directives[-1].str.lower().find("#endif")
-
         # easy, no directives
         if len(header_directives) == 0 or len(header_directives) < 3:
             erro = 1
-        elif self.is_variation(h0, fname) or self.is_variation(h1, fname) or hl < 0:
-            erro = 1
         else:
-            erro = 0
+            h0 = header_directives[0].str.lower().split("#ifndef")[-1].strip()
+            h1 = header_directives[1].str.lower().split("#define")[-1].strip()
+            hl = header_directives[-1].str.lower().find("#endif")
+
+            if self.is_variation(h0, fname) or self.is_variation(h1, fname) or hl < 0:
+                erro = 1
 
         if erro:
             self.print_rule_violation(
