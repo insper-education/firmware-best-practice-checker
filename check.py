@@ -15,7 +15,7 @@ from misra import getArguments, is_header, isFunctionCall
 
 
 class checker:
-    def __init__(self, data, repo_name, file_path, rules_yml=None):
+    def __init__(self, data, repo_name, file_path, rules_yml=None, print_enable=True):
         self.data = data
         self.rules_yml = rules_yml
         self.repo_name = repo_name
@@ -23,6 +23,7 @@ class checker:
         self.file_name = os.path.basename(file_path)
         self.read_config()
         self.erro_total = 0
+        self.print_enable = print_enable
         self.erro_log = []
         self.cfg = []
 
@@ -69,7 +70,7 @@ class checker:
         var = None
         if token.astOperand1.str == "[":
             t = token.astOperand1
-            while t.variable == None:
+            while t.variable is None:
                 t = t.astOperand1
             var = t.variable
         else:
@@ -128,7 +129,7 @@ class checker:
 
         return irq_funcs
 
-    def print_rule_violation(self, ruleN, where, text):
+    def print_rule_violation(self, ruleN, alias, where, text):
         self.erro_total = self.erro_total + 1
         erro_text = text[0]
         self.erro_log.append(
@@ -136,11 +137,30 @@ class checker:
                 "repo": self.repo_name,
                 "file": self.file_name,
                 "rule": ruleN,
+                "alias": alias,
                 "file": where,
                 "text": erro_text,
             }
         )
-        print(f" - [{fg.red}RULE {ruleN} VIOLATION{fg.rs}] {where} \r\n\t {erro_text}")
+        if self.print_enable:
+            print(
+                f" - [{fg.red}RULE {ruleN} {alias} VIOLATION{fg.rs}] {where} \r\n\t {erro_text}"
+            )
+
+    def print_log_xml(self):
+        xml_header = '<?xml version="1.0" encoding="UTF-8"?>\n<results version="2">\n    <code-quality version="1"/>\n    <errors>'
+        xml_footer = "    </errors>\n</results>"
+
+        xml_errors = ""
+        for error in self.erro_log:
+            xml_error = f"""
+        <error id="{error['alias']}" severity="style" msg="{error['text']}">
+            <location file="{error['file']}"/>
+        </error>"""
+            xml_errors += xml_error
+
+        xml_full = f"{xml_header}{xml_errors}\n{xml_footer}"
+        print(xml_full, file=sys.stderr)
 
     def rule_1_1(self):
         """
@@ -176,6 +196,7 @@ class checker:
                 func_name = ass["className"]
                 self.print_rule_violation(
                     "1_1",
+                    "notVolatileVarIrq"
                     f"variable {fg.blue}{var_name}{fg.rs} in function {fg.blue}{func_name}{fg.rs}",
                     self.config["RULE_1_1_ERRO_TXT"],
                 )
@@ -208,6 +229,7 @@ class checker:
                 func_name = ass["className"]
                 self.print_rule_violation(
                     "1_2",
+                    "badUseofVolatile"
                     f"variable {fg.blue}{var_name}{fg.rs} in function {fg.blue}{func_name}{fg.rs}",
                     self.config["RULE_1_2_ERRO_TXT"],
                 )
@@ -253,6 +275,7 @@ class checker:
             var_name = ass["variable"].nameToken.str
             self.print_rule_violation(
                 "1_3",
+                "badUseGlobalVar",
                 f"global variable {fg.blue}{var_name}{fg.rs}",
                 self.config["RULE_1_3_ERRO_TXT"],
             )
@@ -261,7 +284,7 @@ class checker:
 
         return erro
 
-    def rule_3_x(self, rule_n, erro_txt, rule):
+    def rule_3_x(self, rule_n, alias, erro_txt, rule):
         """
         Rule 3: search for forbiten functions call inside ISR
         """
@@ -289,7 +312,10 @@ class checker:
         Rule 2_1: No delay inside IRQ
         """
         return self.rule_3_x(
-            "3_1", self.config["RULE_3_1_ERRO_TXT"], self.config["DELAY_FUNCTIONS"]
+            "3_1",
+            "delayInIRQ",
+            self.config["RULE_3_1_ERRO_TXT"],
+            self.config["DELAY_FUNCTIONS"],
         )
 
     def rule_3_2(self):
@@ -297,7 +323,10 @@ class checker:
         Rule 2_2: No oled calls inside IRQ
         """
         return self.rule_3_x(
-            "3_2", self.config["RULE_3_2_ERRO_TXT"], self.config["OLED_FUNCTIONS"]
+            "3_2",
+            "oledInIRQ",
+            self.config["RULE_3_2_ERRO_TXT"],
+            self.config["OLED_FUNCTIONS"],
         )
 
     def rule_3_3(self):
@@ -305,7 +334,10 @@ class checker:
         Rule 2_3: No printf calls inside IRQ
         """
         return self.rule_3_x(
-            "3_3", self.config["RULE_3_3_ERRO_TXT"], self.config["PRINTF_FUNCTIONS"]
+            "3_3",
+            "printfInIRQ",
+            self.config["RULE_3_3_ERRO_TXT"],
+            self.config["PRINTF_FUNCTIONS"],
         )
 
     def rule_3_4(self):
@@ -323,6 +355,7 @@ class checker:
                         irq_name = function.token.str
                         self.print_rule_violation(
                             "3_4",
+                            "whileInIRQ",
                             f"Use of {fg.blue}{token.str}{fg.rs} inside {fg.blue}{irq_name}{fg.rs}",
                             self.config["RULE_3_4_ERRO_TXT"],
                         )
@@ -380,6 +413,7 @@ class checker:
         if erro:
             self.print_rule_violation(
                 "2_1",
+                "noIncludeGuard",
                 f"no include guard detected in file or wrong implementation on: {fg.blue}{fname}{fg.rs}",
                 self.config["RULE_2_1_ERRO_TXT"],
             )
@@ -411,6 +445,7 @@ class checker:
 
                     self.print_rule_violation(
                         "2_2",
+                        "cInHeadFile",
                         f"Use of C code declaration in {fg.blue}line {token.linenr}{fg.rs} inside file {fg.blue}{file_name}{fg.rs}",
                         self.config["RULE_2_2_ERRO_TXT"],
                     )
@@ -430,9 +465,9 @@ def main():
         help="csv file name to save result",
     )
     parser.add_argument(
-        "--print-table",
+        "--xml",
         action=argparse.BooleanOptionalAction,
-        help="print table with report",
+        help="print xml",
     )
     args = parser.parse_args()
 
@@ -452,7 +487,7 @@ def main():
         print(f"Checking: {check_name}")
 
         data = cppcheckdata.CppcheckData(f)
-        check = checker(data, check_name, f)
+        check = checker(data, check_name, f, print_enable=not args.xml)
         for cfg in data.iterconfigurations():
             check.update_cfg(cfg)
             check.get_only_global_vars()
@@ -479,8 +514,8 @@ def main():
         writer.writerows(table)
         args.output_file.close()
 
-    if args.print_table:
-        print(tabulate(table, headers="firstrow", tablefmt="fancy_grid"))
+    if args.xml:
+        check.print_log_xml()
 
     sys.exit(erro_total)
 
