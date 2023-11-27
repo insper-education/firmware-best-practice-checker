@@ -70,8 +70,11 @@ class checker:
         var = None
         if token.astOperand1.str == "[":
             t = token.astOperand1
+
             while t.variable is None:
                 t = t.astOperand1
+                if t is None:
+                    return None
             var = t.variable
         else:
             var = token.astOperand1.variable
@@ -301,6 +304,7 @@ class checker:
                         call_name = token.str
                         self.print_rule_violation(
                             rule_n,
+                            alias,
                             f"function call to {fg.blue}{call_name}{fg.rs} inside {fg.blue}{irq_name}{fg.rs}",
                             erro_txt,
                         )
