@@ -146,9 +146,7 @@ class checker:
             }
         )
         if self.print_enable:
-            print(
-                f" - [{fg.red}RULE {ruleN} {alias} VIOLATION{fg.rs}] {where} \r\n\t {erro_text}"
-            )
+            print(f" - [RULE {ruleN} {alias} VIOLATION] {where} \r\n\t {erro_text}")
 
     def print_log_xml(self):
         xml_header = '<?xml version="1.0" encoding="UTF-8"?>\n<results version="2">\n    <code-quality version="1"/>\n    <errors>'
@@ -199,8 +197,8 @@ class checker:
                 func_name = ass["className"]
                 self.print_rule_violation(
                     "1_1",
-                    "notVolatileVarIrq"
-                    f"variable {fg.blue}{var_name}{fg.rs} in function {fg.blue}{func_name}{fg.rs}",
+                    "notVolatileVarIrq",
+                    f"variable {var_name} in function {func_name}",
                     self.config["RULE_1_1_ERRO_TXT"],
                 )
                 var_erro_list_id.append(ass["variable"].Id)
@@ -232,8 +230,8 @@ class checker:
                 func_name = ass["className"]
                 self.print_rule_violation(
                     "1_2",
-                    "badUseofVolatile"
-                    f"variable {fg.blue}{var_name}{fg.rs} in function {fg.blue}{func_name}{fg.rs}",
+                    "badUseofVolatile",
+                    f"variable {var_name} in function {func_name}",
                     self.config["RULE_1_2_ERRO_TXT"],
                 )
                 erro = erro + 1
@@ -279,7 +277,7 @@ class checker:
             self.print_rule_violation(
                 "1_3",
                 "badUseGlobalVar",
-                f"global variable {fg.blue}{var_name}{fg.rs}",
+                f"global variable {var_name}",
                 self.config["RULE_1_3_ERRO_TXT"],
             )
             var_erro_list_id.append(ass["variable"].Id)
@@ -305,7 +303,7 @@ class checker:
                         self.print_rule_violation(
                             rule_n,
                             alias,
-                            f"function call to {fg.blue}{call_name}{fg.rs} inside {fg.blue}{irq_name}{fg.rs}",
+                            f"function call to {call_name} inside {irq_name}",
                             erro_txt,
                         )
                         erro = erro + 1
@@ -360,7 +358,7 @@ class checker:
                         self.print_rule_violation(
                             "3_4",
                             "whileInIRQ",
-                            f"Use of {fg.blue}{token.str}{fg.rs} inside {fg.blue}{irq_name}{fg.rs}",
+                            f"Use of {token.str} inside {irq_name}",
                             self.config["RULE_3_4_ERRO_TXT"],
                         )
                         erro = erro + 1
@@ -418,7 +416,7 @@ class checker:
             self.print_rule_violation(
                 "2_1",
                 "noIncludeGuard",
-                f"no include guard detected in file or wrong implementation on: {fg.blue}{fname}{fg.rs}",
+                f"no include guard detected in file or wrong implementation on: {fname}",
                 self.config["RULE_2_1_ERRO_TXT"],
             )
 
@@ -450,7 +448,7 @@ class checker:
                     self.print_rule_violation(
                         "2_2",
                         "cInHeadFile",
-                        f"Use of C code declaration in {fg.blue}line {token.linenr}{fg.rs} inside file {fg.blue}{file_name}{fg.rs}",
+                        f"Use of C code declaration in line {token.linenr} inside file {file_name}",
                         self.config["RULE_2_2_ERRO_TXT"],
                     )
                     head_list.append(token.file)
@@ -493,6 +491,8 @@ def main():
         data = cppcheckdata.CppcheckData(f)
         check = checker(data, check_name, f, print_enable=not args.xml)
         for cfg in data.iterconfigurations():
+            if cfg.name != "":
+                continue
             check.update_cfg(cfg)
             check.get_only_global_vars()
             check.get_all_var_ass()
