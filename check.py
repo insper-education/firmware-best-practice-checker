@@ -15,8 +15,11 @@ from misra import getArguments, is_header, isFunctionCall
 
 
 class checker:
-    def __init__(self, data, repo_name, file_path, rules_yml=None, print_enable=True):
+    def __init__(
+        self, data, repo_name, file_path, rtos, rules_yml=None, print_enable=True
+    ):
         self.data = data
+        self.rtos = rtos
         self.rules_yml = rules_yml
         self.repo_name = repo_name
         self.file_path = file_path
@@ -130,7 +133,18 @@ class checker:
                     if func.function is not None:
                         irq_funcs.append(func.function)
 
-        return irq_funcs
+        res = []
+        [res.append(x) for x in irq_funcs if x not in res]
+        return res
+
+    def create_rtos_task_list(self):
+        # TODO improve to get info from task_create
+        task_funcs = []
+        for func in self.cfg.functions:
+            if func.name.find("task") >= 0:
+                task_funcs.append(func)
+
+        return task_funcs
 
     def print_rule_violation(self, ruleN, alias, where, text):
         self.erro_total = self.erro_total + 1
@@ -165,7 +179,7 @@ class checker:
 
     def rule_1_1(self):
         """
-        Rule 1: All global variables assigment in IRQ or Callback should be volatile
+        Rule 1_1: All global variables assigment in IRQ or Callback should be volatile
         """
         erro = 0
 
@@ -207,7 +221,7 @@ class checker:
 
     def rule_1_2(self):
         """
-        Rule 2: Do not use volatile in local var
+        Rule 1_2: Do not use volatile in local var
         """
 
         erro = 0
@@ -239,7 +253,7 @@ class checker:
 
     def rule_1_3(self):
         """
-        Rule 2: only use global vars in IRQ
+        Rule 1_3: only use global vars in IRQ
         """
         erro = 0
 
@@ -364,6 +378,100 @@ class checker:
                         erro = erro + 1
         return erro
 
+    def rule_4_1(self):
+        """
+        Use fromISR in interruptions
+        """
+        erro = 0
+        irq_funcs = self.create_function_irq_list()
+        for function in irq_funcs:
+            for token in self.cfg.tokenlist:
+                scope = self.get_scope(token)
+                if scope.function.Id == function.Id:
+                    if token.str in ["xQueueSend", "xSemaphoreGive"]:
+                        if token.str.find("FromISR") < 0:
+                            irq_name = function.token.str
+                            self.print_rule_violation(
+                                "4_1",
+                                "rtosMissingFromISR",
+                                f"Use of {token.str} inside {irq_name}",
+                                self.config["RULE_4_1_ERRO_TXT"],
+                            )
+                            erro = erro + 1
+        return erro
+
+    def rule_4_2(self):
+        """
+        Do not use fromISR in tasks
+        """
+        erro = 0
+        task_funcs = self.create_rtos_task_list()
+        for function in task_funcs:
+            for token in self.cfg.tokenlist:
+                scope = self.get_scope(token)
+                if scope.function.Id == function.Id:
+                    if token.str.find("FromISR") >= 0:
+                        irq_name = function.token.str
+                        self.print_rule_violation(
+                            "4_2",
+                            "rtosBadUseOfFromISR",
+                            f"Use of {token.str} inside {irq_name}",
+                            self.config["RULE_4_2_ERRO_TXT"],
+                        )
+                        erro = erro + 1
+        return erro
+
+    def rule_4_3(self):
+        """
+        Do not use time delay in tasks
+        """
+        erro = 0
+        task_funcs = self.create_rtos_task_list()
+        for function in task_funcs:
+            for token in self.cfg.tokenlist:
+                scope = self.get_scope(token)
+                if scope.function.Id == function.Id:
+                    if any(x in token.str for x in self.config["DELAY_FUNCTIONS"]):
+                        irq_name = function.token.str
+                        self.print_rule_violation(
+                            "4_3",
+                            "rtosBadUseOfDelay",
+                            f"Use of {token.str} inside {irq_name}",
+                            self.config["RULE_4_3_ERRO_TXT"],
+                        )
+                        erro = erro + 1
+        return erro
+
+    def rule_4_4(self):
+        """
+        Rule 4_4: Do not use global vars with RTOS! You dont need them.
+        """
+        erro = 0
+
+        var_erro_list = []
+
+        # interact in global vars only assigments
+        for var in self.get_only_golbal_var_ass():
+            var_name = var["variable"].nameToken.str
+            var_type = var["variable"].typeStartToken.str
+
+            if var_name in var_erro_list:
+                continue
+
+            if var_type in self.config["RULE_1_3_EXCEPTIONS"]:
+                continue
+
+            self.print_rule_violation(
+                "4_4",
+                "rtosBadUseGlobalVar",
+                f"global variable {var_name}",
+                self.config["RULE_4_4_ERRO_TXT"],
+            )
+            erro = erro + 1
+
+            var_erro_list.append(var_name)
+        return erro
+
     def canonical_form(self, s: str) -> str:
         """Convert a string to its canonical form."""
         # Remove any file extensions
@@ -467,6 +575,11 @@ def main():
         help="csv file name to save result",
     )
     parser.add_argument(
+        "--rtos",
+        action=argparse.BooleanOptionalAction,
+        help="rtos specific config",
+    )
+    parser.add_argument(
         "--xml",
         action=argparse.BooleanOptionalAction,
         help="print xml",
@@ -479,6 +592,8 @@ def main():
     else:
         files = [file]
 
+    rtos = args.rtos
+
     erro_total = 0
     erro_log = []
 
@@ -489,22 +604,33 @@ def main():
         print(f"Checking: {check_name}")
 
         data = cppcheckdata.CppcheckData(f)
-        check = checker(data, check_name, f, print_enable=not args.xml)
+        check = checker(data, check_name, f, rtos=args.rtos, print_enable=not args.xml)
         for cfg in data.iterconfigurations():
             if cfg.name != "":
                 continue
             check.update_cfg(cfg)
             check.get_only_global_vars()
             check.get_all_var_ass()
+
             check.rule_1_1()
             check.rule_1_2()
-            check.rule_1_3()
+            if rtos is False:
+                check.rule_1_3()
+
             check.rule_2_1()
             check.rule_2_2()
+
             check.rule_3_1()
             check.rule_3_2()
             check.rule_3_3()
             check.rule_3_4()
+
+            check.rule_4_1()
+            check.rule_4_2()
+            check.rule_4_3()
+            if rtos:
+                check.rule_4_4()
+
         erro_total = erro_total + check.erro_total
         erro_log.append(check.erro_log)
 

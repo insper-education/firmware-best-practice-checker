@@ -26,6 +26,7 @@ RULE_1_3_EXCEPTIONS:
   - TimerHandle_t
   - QueueHandle_t
 
+
 RULE_1_1_ERRO_TXT:
   - All global variables that are accessed from IRQ must be declared as volatile to ensure that the compailer will not optimize it out.
   - All global variables that are updated in IRQ or Callback should be volatile.
@@ -61,3 +62,19 @@ RULE_2_1_ERRO_TXT:
 RULE_2_2_ERRO_TXT:
  - Do not implement code inside .h file
  - Forbidden implementation of C code in .h file
+
+RULE_4_1_ERRO_TXT:
+ - You shall use fromISR when calling freertos functions from hardware interruption
+ - Use fromISR when in IRS
+
+RULE_4_2_ERRO_TXT:
+ - You cant use fromISR when calling freertos functions from tasks
+ - Do not use fromISR from task
+
+RULE_4_3_ERRO_TXT:
+ - On most of the times you should use vTaskDelays in freertos tasks
+ - Use vTaskDelays instead of delay_
+
+RULE_4_4_ERRO_TXT:
+ - Do not use global vars with RTOS! You dont need them. Use queue or semaphore
+ - Use queue or semaphore instead global var
