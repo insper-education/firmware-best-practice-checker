@@ -11,7 +11,7 @@ from sty import bg, ef, fg, rs
 from tabulate import tabulate
 
 import cppcheckdata
-from misra import getArguments, is_header, isFunctionCall
+from misra import getArguments, isFunctionCall
 
 
 class checker:
@@ -47,6 +47,9 @@ class checker:
 
     def get_scopes(self):
         return self.cfg.scopes
+
+    def is_header(self, file):
+        return file.lower().endswith(".h")
 
     def get_previous_scope(self, scope_id):
         cnt = 0
@@ -304,23 +307,30 @@ class checker:
         Rule 3: search for forbiten functions call inside ISR
         """
         erro = 0
-
         irq_funcs = self.create_function_irq_list()
         for function in irq_funcs:
+            tokens = []
             for token in self.cfg.tokenlist:
                 scope = self.get_scope(token)
                 if scope.function.Id == function.Id:
-                    res = [ele for ele in rule if (ele in token.str)]
-                    if res:
-                        irq_name = function.token.str
-                        call_name = token.str
-                        self.print_rule_violation(
-                            rule_n,
-                            alias,
-                            f"function call to {call_name} inside {irq_name}",
-                            erro_txt,
-                        )
-                        erro = erro + 1
+                    tokens.append(token)
+
+                    if token.functionId is not None:
+                        extra_tokens = self.get_tokens_function_call(token.functionId)
+                        tokens.extend(extra_tokens)
+
+            for token in tokens:
+                res = [ele for ele in rule if (ele in token.str)]
+                if res:
+                    irq_name = function.token.str
+                    call_name = token.str
+                    self.print_rule_violation(
+                        rule_n,
+                        alias,
+                        f"function call to {call_name} inside {irq_name}",
+                        erro_txt,
+                    )
+                    erro = erro + 1
         return erro
 
     def rule_3_1(self):
@@ -421,6 +431,14 @@ class checker:
                         erro = erro + 1
         return erro
 
+    def get_tokens_function_call(self, functionId):
+        tokens = []
+        for token in self.cfg.tokenlist:
+            scope = self.get_scope(token)
+            if scope.function.Id == functionId:
+                tokens.append(token)
+        return tokens
+
     def rule_4_3(self):
         """
         Do not use time delay in tasks
@@ -428,23 +446,30 @@ class checker:
         erro = 0
         task_funcs = self.create_rtos_task_list()
         for function in task_funcs:
+            tokens = []
             for token in self.cfg.tokenlist:
                 scope = self.get_scope(token)
                 if scope.function.Id == function.Id:
-                    if any(x in token.str for x in self.config["DELAY_FUNCTIONS"]):
-                        irq_name = function.token.str
-                        self.print_rule_violation(
-                            "4_3",
-                            "rtosBadUseOfDelay",
-                            f"Use of {token.str} inside {irq_name}",
-                            self.config["RULE_4_3_ERRO_TXT"],
-                        )
-                        erro = erro + 1
+                    tokens.append(token)
+                    if token.functionId is not None:
+                        extra_tokens = self.get_tokens_function_call(token.functionId)
+                        tokens.extend(extra_tokens)
+
+            for token in tokens:
+                if any(x in token.str for x in self.config["DELAY_FUNCTIONS"]):
+                    task_name = function.token.str
+                    self.print_rule_violation(
+                        "4_3",
+                        "rtosBadUseOfDelay",
+                        f"Use of {token.str} inside {task_name}",
+                        self.config["RULE_4_3_ERRO_TXT"],
+                    )
+                    erro = erro + 1
         return erro
 
     def rule_4_4(self):
         """
-        Rule 4_4: Do not use global vars with RTOS! You dont need them.
+        Rule 4_4: Do not use global vars with RTOS! Youdont need them.
         """
         erro = 0
 
@@ -496,37 +521,40 @@ class checker:
         """
         erro = 0
 
-        fname = self.cfg.tokenlist[0].file
+        h_list = []
+        for directives in self.cfg.directives:
+            file_name = os.path.basename(directives.file)
+            if self.is_header(file_name) and file_name not in h_list:
+                h_list.append(file_name)
 
-        if not is_header(fname):
-            return erro
+        for fname in h_list:
+            header_directives = []
+            for d in self.cfg.directives:
+                if os.path.basename(d.file.lower()) == fname.lower():
+                    header_directives.append(d)
 
-        fname = os.path.basename(self.cfg.tokenlist[0].file)
-
-        all_directives = self.cfg.directives
-        header_directives = []
-        for d in all_directives:
-            if os.path.basename(d.file.lower()) == fname.lower():
-                header_directives.append(d)
-
-        # easy, no directives
-        if len(header_directives) == 0 or len(header_directives) < 3:
-            erro = 1
-        else:
-            h0 = header_directives[0].str.lower().split("#ifndef")[-1].strip()
-            h1 = header_directives[1].str.lower().split("#define")[-1].strip()
-            hl = header_directives[-1].str.lower().find("#endif")
-
-            if self.is_variation(h0, fname) or self.is_variation(h1, fname) or hl < 0:
+            # easy, no directives
+            if len(header_directives) == 0 or len(header_directives) < 3:
                 erro = 1
+            else:
+                h0 = header_directives[0].str.lower().split("#ifndef")[-1].strip()
+                h1 = header_directives[1].str.lower().split("#define")[-1].strip()
+                hl = header_directives[-1].str.lower().find("#endif")
 
-        if erro:
-            self.print_rule_violation(
-                "2_1",
-                "noIncludeGuard",
-                f"no include guard detected in file or wrong implementation on: {fname}",
-                self.config["RULE_2_1_ERRO_TXT"],
-            )
+                if (
+                    self.is_variation(h0, fname)
+                    or self.is_variation(h1, fname)
+                    or hl < 0
+                ):
+                    erro = 1
+
+            if erro:
+                self.print_rule_violation(
+                    "2_1",
+                    "noIncludeGuard",
+                    f"no include guard detected in file or wrong implementation on: {fname}",
+                    self.config["RULE_2_1_ERRO_TXT"],
+                )
 
         return erro
 
@@ -538,7 +566,7 @@ class checker:
 
         head_list = []
         for token in self.cfg.tokenlist:
-            if is_header(token.file):
+            if self.is_header(token.file):
                 if token.isOp:
                     if token.file in head_list:
                         continue
@@ -577,6 +605,7 @@ def main():
     parser.add_argument(
         "--rtos",
         action=argparse.BooleanOptionalAction,
+        default=False,
         help="rtos specific config",
     )
     parser.add_argument(
@@ -602,7 +631,6 @@ def main():
         print(f)
         check_name = os.path.relpath(f, file).split("/")[0]
         print(f"Checking: {check_name}")
-
         data = cppcheckdata.CppcheckData(f)
         check = checker(data, check_name, f, rtos=args.rtos, print_enable=not args.xml)
         for cfg in data.iterconfigurations():
