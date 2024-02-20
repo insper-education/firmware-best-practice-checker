@@ -131,8 +131,8 @@ class checker:
         # TODO: export this to config file
         for token in self.cfg.tokenlist:
             if isFunctionCall(token):
-                if token.previous.str == "pio_handler_set":
-                    func = getArguments(token)[-1]
+                if token.previous.str == "gpio_set_irq_enabled_with_callback":
+                    func = getArguments(token)[-1].replace("&", "")
                     if func.function is not None:
                         irq_funcs.append(func.function)
 

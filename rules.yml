@@ -3,9 +3,10 @@ IRQ_NAMES:
   - Handler
 
 DELAY_FUNCTIONS:
-  - delay_ms
-  - delay_us
-  - delay_s
+  - sleep_us
+  - sleep_ms
+  - busy_wait_us
+  - busy_wait_ms
 
 OLED_FUNCTIONS:
   - gfx_mono_
@@ -25,7 +26,6 @@ RULE_1_3_EXCEPTIONS:
   - SemaphoreHandle_t
   - TimerHandle_t
   - QueueHandle_t
-
 
 RULE_1_1_ERRO_TXT:
   - All global variables that are accessed from IRQ must be declared as volatile to ensure that the compailer will not optimize it out.
