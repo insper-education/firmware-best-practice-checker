@@ -132,7 +132,14 @@ class checker:
         for token in self.cfg.tokenlist:
             if isFunctionCall(token):
                 if token.previous.str == "gpio_set_irq_enabled_with_callback":
-                    func = getArguments(token)[-1].replace("&", "")
+                    func_arg = getArguments(token)[-1]
+                    if func_arg.str == "&":
+                        # using function pointer a.k &btn_callback
+                        func = func_arg.next
+                    else:
+                        # using only btn_callback
+                        func = func_arg
+
                     if func.function is not None:
                         irq_funcs.append(func.function)
 
