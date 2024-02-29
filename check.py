@@ -147,6 +147,10 @@ class checker:
         [res.append(x) for x in irq_funcs if x not in res]
         return res
 
+    def create_list_var_assigm_main(self):
+        assigments = self.get_all_var_ass()
+        breakpoint()
+
     def create_rtos_task_list(self):
         # TODO improve to get info from task_create
         task_funcs = []
@@ -275,7 +279,7 @@ class checker:
         for func in irq_funcs:
             irq_func_class_names.append(func.name)
 
-        # create var list that are update in ISR
+        # create var list that are update in ISR and main
         var_ass_irq_ids = []
         for ass in assigments:
             if [ele for ele in irq_func_class_names if (ele in ass["className"])]:
@@ -303,6 +307,58 @@ class checker:
                 "badUseGlobalVar",
                 f"global variable {var_name}",
                 self.config["RULE_1_3_ERRO_TXT"],
+            )
+            var_erro_list_id.append(ass["variable"].Id)
+            erro = erro + 1
+
+        return erro
+
+    def rule_1_4(self):
+        """
+        Rule 1_4: only use global vars in IRQ and not used in main
+        """
+        erro = 0
+
+        assigments = self.get_only_golbal_var_ass()
+        irq_funcs = self.create_function_irq_list()
+
+        # create lisr of function IRQ name
+        irq_func_class_names = []
+        for func in irq_funcs:
+            irq_func_class_names.append(func.name)
+
+        # create var list that are update in ISR and main
+        var_ass_irq_ids = []
+        var_ass_main_ids = []
+        for ass in assigments:
+            if [ele for ele in irq_func_class_names if (ele in ass["className"])]:
+                var_ass_irq_ids.append(ass["variable"].Id)
+            if ass["className"] == "main":
+                var_ass_main_ids.append(ass["variable"].Id)
+
+        # interact in global vars only assigments
+        var_erro_list_id = []
+        for ass in assigments:
+            # excluce specific types exceptions (rtos, lcd)
+            if ass["variable"].typeStartToken.str in self.config["RULE_1_3_EXCEPTIONS"]:
+                continue
+
+            # exclude var that are accessed in Isr
+            if ass["variable"].Id in var_ass_irq_ids:
+                if ass["variable"].Id in var_ass_main_ids:
+                    continue
+
+            # skip duplicate error
+            if ass["variable"].Id in var_erro_list_id:
+                continue
+
+            # erro print
+            var_name = ass["variable"].nameToken.str
+            self.print_rule_violation(
+                "1_4",
+                "implementLogicInMain",
+                f"global variable {var_name}",
+                self.config["RULE_1_4_ERRO_TXT"],
             )
             var_erro_list_id.append(ass["variable"].Id)
             erro = erro + 1
@@ -651,6 +707,7 @@ def main():
             check.rule_1_2()
             if rtos is False:
                 check.rule_1_3()
+                check.rule_1_4()
 
             check.rule_2_1()
             check.rule_2_2()

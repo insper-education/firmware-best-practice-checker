@@ -39,6 +39,10 @@ RULE_1_3_ERRO_TXT:
  - Global variables should generally be avoided, except when necessary or when dealing with IRQs.
  - Do not use global vars outside IRQ.
 
+RULE_1_4_ERRO_TXT:
+ - Global variables should generally be avoided / Avoid code in IRQ. This logic could be implemented in main
+ - Avoid use of global variables.
+
 RULE_3_1_ERRO_TXT:
  - ISR shall be fast as possible, forbidden use of delay functions inside hardware interruption.
  - Forbidden use of delay functions within IRQ.
