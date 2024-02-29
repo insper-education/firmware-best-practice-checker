@@ -40,7 +40,7 @@ RULE_1_3_ERRO_TXT:
  - Do not use global vars outside IRQ.
 
 RULE_1_4_ERRO_TXT:
- - Global variables should generally be avoided / Avoid code in IRQ. This logic could be implemented in main
+ - Global variables should generally be avoided / Avoid code in IRQ. This logic could be implemented in main function.
  - Avoid use of global variables.
 
 RULE_3_1_ERRO_TXT:
