@@ -620,6 +620,13 @@ def main():
         action=argparse.BooleanOptionalAction,
         help="print xml",
     )
+    parser.add_argument(
+        "--disable",
+        action='append',
+        default= "",
+        type=str,
+        help='disable rule by id: exemple --disable rule_1_1'
+    )
     args = parser.parse_args()
 
     file = args.check_path
@@ -629,6 +636,7 @@ def main():
         files = [file]
 
     rtos = args.rtos
+    disable = args.disable
 
     erro_total = 0
     erro_log = []
@@ -647,23 +655,31 @@ def main():
             check.get_only_global_vars()
             check.get_all_var_ass()
 
-            check.rule_1_1()
-            check.rule_1_2()
-            if rtos is False:
+            if 'rule_1_1' not in disable:
+                check.rule_1_1()
+            if 'rule_1_2' not in disable:
+                check.rule_1_2()
+            if rtos is False and 'rule_1_3' not in disable:
                 check.rule_1_3()
-
-            check.rule_2_1()
-            check.rule_2_2()
-
-            check.rule_3_1()
-            check.rule_3_2()
-            check.rule_3_3()
-            check.rule_3_4()
-
-            check.rule_4_1()
-            check.rule_4_2()
-            check.rule_4_3()
-            if rtos:
+            if 'rule_2_1' not in disable:
+                check.rule_2_1()
+            if 'rule_2_2' not in disable:
+                check.rule_2_2()
+            if 'rule_3_1' not in disable:
+                check.rule_3_1()
+            if 'rule_3_2' not in disable:
+                check.rule_3_2()
+            if 'rule_3_3' not in disable:
+                check.rule_3_3()
+            if 'rule_3_4' not in disable:
+                check.rule_3_4()
+            if 'rule_4_1' not in disable:
+                check.rule_4_1()
+            if 'rule_4_2' not in disable:
+                check.rule_4_2()
+            if 'rule_4_3' not in disable:
+                check.rule_4_3()
+            if rtos and 'rule_4_4' not in disable:
                 check.rule_4_4()
 
         erro_total = erro_total + check.erro_total
