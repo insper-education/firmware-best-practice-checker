@@ -623,7 +623,7 @@ def main():
     parser.add_argument(
         "--disable",
         action='append',
-        default= "",
+        default=None,
         type=str,
         help='disable rule by id: exemple --disable rule_1_1'
     )
@@ -636,7 +636,10 @@ def main():
         files = [file]
 
     rtos = args.rtos
-    disable = args.disable
+    if args.disable is None:
+        disable = []
+    else:
+        disable = args.disable
 
     erro_total = 0
     erro_log = []
