@@ -10,6 +10,7 @@ DELAY_FUNCTIONS:
 
 OLED_FUNCTIONS:
   - gfx_mono_
+  - gfx_
 
 PRINTF_FUNCTIONS:
   - printf
