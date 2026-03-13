@@ -288,6 +288,10 @@ class checker:
             if ass["variable"].typeStartToken.str in self.config["RULE_1_3_EXCEPTIONS"]:
                 continue
 
+            # exclude assignments made from explicitly allowed functions (e.g. main)
+            if ass["className"] in self.config.get("RULE_1_3_FUNC_EXCEPTIONS", []):
+                continue
+
             # exclude var that are accessed in Isr
             if ass["variable"].Id in var_ass_irq_ids:
                 continue

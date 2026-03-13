@@ -29,6 +29,9 @@ RULE_1_3_EXCEPTIONS:
   - TimerHandle_t
   - QueueHandle_t
 
+RULE_1_3_FUNC_EXCEPTIONS:
+  - main
+
 RULE_1_1_ERRO_TXT:
   - All global variables that are accessed from IRQ must be declared as volatile to ensure that the compailer will not optimize it out.
   - All global variables that are updated in IRQ or Callback should be volatile.
