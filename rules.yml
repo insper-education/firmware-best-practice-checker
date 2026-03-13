@@ -1,6 +1,7 @@
 IRQ_NAMES:
   - callback
   - Handler
+  - handler
 
 DELAY_FUNCTIONS:
   - sleep_us
