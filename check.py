@@ -468,6 +468,8 @@ class checker:
 
             for token in tokens:
                 if any(x in token.str for x in self.config["DELAY_FUNCTIONS"]):
+                    if any(token.str == exc for exc in self.config.get("RULE_4_3_EXCEPTIONS", [])):
+                        continue
                     task_name = function.token.str
                     self.print_rule_violation(
                         "4_3",

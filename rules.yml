@@ -32,6 +32,9 @@ RULE_1_3_EXCEPTIONS:
 RULE_1_3_FUNC_EXCEPTIONS:
   - main
 
+RULE_4_3_EXCEPTIONS:
+  - sleep_us
+
 RULE_1_1_ERRO_TXT:
   - All global variables that are accessed from IRQ must be declared as volatile to ensure that the compailer will not optimize it out.
   - All global variables that are updated in IRQ or Callback should be volatile.
@@ -75,6 +78,7 @@ RULE_4_1_ERRO_TXT:
 RULE_4_2_ERRO_TXT:
  - You cant use fromISR when calling freertos functions from tasks
  - Do not use fromISR from task
+
 
 RULE_4_3_ERRO_TXT:
  - On most of the times you should use vTaskDelays in freertos tasks
