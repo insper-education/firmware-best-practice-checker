@@ -395,8 +395,11 @@ class Token:
         self.function = IdMap[self.functionId]
         self.values = []
         self.impossible_values = []
-        if IdMap[self.valuesId]:
-            for v in IdMap[self.valuesId]:
+        valueflow = IdMap[self.valuesId]
+        # Newer cppcheck dump formats may reuse an ID that resolves to a
+        # token.  Only <values> entries are iterable value-flow collections.
+        if valueflow and not isinstance(valueflow, Token):
+            for v in valueflow:
                 if v.isImpossible():
                     self.impossible_values.append(v)
                 else:
