@@ -49,7 +49,7 @@ class checker:
         return self.cfg.scopes
 
     def is_header(self, file):
-        return file.lower().endswith(".h")
+        return bool(file) and file.lower().endswith(".h")
 
     def get_previous_scope(self, scope_id):
         cnt = 0
