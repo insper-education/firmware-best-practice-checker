@@ -68,7 +68,9 @@ class checker:
 
     def get_scope(self, token):
         scope = token.scope
-        while scope.type != "Function":
+        while scope is not None and not hasattr(scope, "type"):
+            scope = getattr(scope, "scope", None)
+        while scope is not None and scope.type != "Function":
             scope = self.get_previous_scope(scope.Id)
         return scope
 
@@ -323,7 +325,7 @@ class checker:
             tokens = []
             for token in self.cfg.tokenlist:
                 scope = self.get_scope(token)
-                if scope.function.Id == function.Id:
+                if scope and scope.function and scope.function.Id == function.Id:
                     tokens.append(token)
 
                     if token.functionId is not None:
@@ -387,7 +389,7 @@ class checker:
         for function in irq_funcs:
             for token in self.cfg.tokenlist:
                 scope = self.get_scope(token)
-                if scope.function.Id == function.Id:
+                if scope and scope.function and scope.function.Id == function.Id:
                     if token.str in ["while", "for", "do"]:
                         irq_name = function.token.str
                         self.print_rule_violation(
@@ -408,7 +410,7 @@ class checker:
         for function in irq_funcs:
             for token in self.cfg.tokenlist:
                 scope = self.get_scope(token)
-                if scope.function.Id == function.Id:
+                if scope and scope.function and scope.function.Id == function.Id:
                     if token.str in ["xQueueSend", "xSemaphoreGive"]:
                         if token.str.find("FromISR") < 0:
                             irq_name = function.token.str
@@ -430,7 +432,7 @@ class checker:
         for function in task_funcs:
             for token in self.cfg.tokenlist:
                 scope = self.get_scope(token)
-                if scope.function.Id == function.Id:
+                if scope and scope.function and scope.function.Id == function.Id:
                     if token.str.find("FromISR") >= 0:
                         irq_name = function.token.str
                         self.print_rule_violation(
@@ -446,7 +448,7 @@ class checker:
         tokens = []
         for token in self.cfg.tokenlist:
             scope = self.get_scope(token)
-            if scope.function.Id == functionId:
+            if scope and scope.function and scope.function.Id == functionId:
                 tokens.append(token)
         return tokens
 
@@ -460,7 +462,7 @@ class checker:
             tokens = []
             for token in self.cfg.tokenlist:
                 scope = self.get_scope(token)
-                if scope.function.Id == function.Id:
+                if scope and scope.function and scope.function.Id == function.Id:
                     tokens.append(token)
                     if token.functionId is not None:
                         extra_tokens = self.get_tokens_function_call(token.functionId)
