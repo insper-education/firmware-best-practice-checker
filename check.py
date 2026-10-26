@@ -94,10 +94,12 @@ class checker:
         for token in self.cfg.tokenlist:
             if token.isAssignmentOp and token.scope.type != "Global":
                 variable = self.get_var_ass(token)
-                if variable is None:
+                if variable is None or not hasattr(variable, "isVolatile"):
                     continue
 
                 scope = self.get_scope(token)
+                if scope is None:
+                    continue
                 ass.append(
                     {
                         "className": scope.className,
