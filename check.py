@@ -68,9 +68,18 @@ class checker:
 
     def get_scope(self, token):
         scope = token.scope
+        visited = set()
         while scope is not None and not hasattr(scope, "type"):
+            scope_id = id(scope)
+            if scope_id in visited:
+                return None
+            visited.add(scope_id)
             scope = getattr(scope, "scope", None)
         while scope is not None and scope.type != "Function":
+            scope_id = id(scope)
+            if scope_id in visited:
+                return None
+            visited.add(scope_id)
             scope = self.get_previous_scope(scope.Id)
         return scope
 
